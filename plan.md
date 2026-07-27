@@ -1,0 +1,375 @@
+# Plan de Proyecto: Directorio de Médicos Especialistas
+
+**Cliente:** Ministerio de Educación de Guatemala
+**Equipo:** 4 personas
+**Duración:** 4 semanas
+**Stack:** TypeScript · Firebase Functions v2 · Firestore · Google Places API · Firebase Hosting
+
+---
+
+## 1. Objetivo
+
+Sistema que recolecta, almacena y expone datos de médicos especialistas en Ciudad de Guatemala (nombre, especialidad, dirección, teléfono, sitio web) usando Google Places API, con API paginada protegida por IP whitelist y UI mínima de consulta.
+
+**Objetivo ampliado:** no entregamos solo un directorio, entregamos una **auditoría de la fuente de datos**. El sistema mide y documenta sus propios sesgos, cumple los ToS de Google en código (no solo en prosa) y expone mecanismos de corrección para las personas cuyos datos aparecen.
+
+---
+
+## 2. Tesis del Proyecto
+
+Tres afirmaciones que sostenemos con código y números, no con párrafos:
+
+1. **Cumplimiento verificable.** Los ToS de Google Maps Platform limitan el almacenamiento de contenido de Places a 30 días. Lo implementamos con TTL y purga automática.
+2. **La fuente no es neutral.** Google Places sobrerrepresenta zonas con presencia digital. Lo medimos con nuestros propios datos y publicamos el hallazgo.
+3. **La IP whitelist es insuficiente.** La implementamos porque se pide, documentamos su modelo de amenazas y agregamos defensa en profundidad.
+
+---
+
+## 3. Arquitectura General
+
+```
+[UI Firebase Hosting] --> [GET /directorio] --> [IP Whitelist + Rate Limit] --> [Firestore]
+        |                                                |
+        |                                           403 + access_log
+        |
+        +--> [POST /correcciones] --> [cola de revisión / blocklist]
+
+[recolectarMedicos] --(keyword, zona)--> [Google Places API] --> [medicos + collection_runs]
+
+[Scheduler diario] --> [purgeExpiredRecords]   (cumplimiento ToS 30 días)
+[Scheduler diario] --> [computeCoverageStats]  (auditoría de cobertura/sesgo)
+```
+
+### Colecciones Firestore
+
+```
+medicos/{place_id}
+  nombre
+  especialidad_raw            # texto original de la fuente, nunca se sobrescribe
+  especialidad_normalizada?   # opcional, ver sección 9
+  confidence?                 # confianza de la normalización
+  direccion
+  telefono        | null
+  sitio_web       | null
+  missing_fields: string[]    # campos ausentes explícitos, nunca cadenas vacías
+  zona, lat, lng
+  fecha_recoleccion
+  expires_at                  # fecha_recoleccion + 30 días (ToS Google)
+  run_id                      # trazabilidad a la corrida que lo creó
+  keyword_usado
+  suppressed: boolean         # true si hubo solicitud de remoción
+
+collection_runs/{run_id}
+  keyword, zona, timestamp, operator
+  api_calls, results_new, results_duplicated
+  estimated_cost_usd
+
+coverage_stats/{zona}_{especialidad}
+  searches_run, unique_results
+  pct_con_telefono, pct_con_sitio_web
+  computed_at
+
+correcciones/{id}
+  place_id, tipo (correccion | remocion), mensaje
+  estado (pendiente | aplicada | rechazada), created_at
+
+access_log/{id}
+  ip, ruta, resultado (200 | 403 | 429), timestamp
+```
+
+### Cloud Functions
+
+| Función | Tipo | Responsabilidad |
+|---|---|---|
+| `recolectarMedicos` | HTTP manual | keyword + zona → Places API → Firestore. Límite 20 resultados/invocación. Registra `collection_runs`. |
+| `obtenerDirectorio` | HTTP GET `/directorio` | Paginado, filtros `especialidad` y `zona`. IP whitelist + rate limit. Excluye `suppressed` y expirados. |
+| `submitCorreccion` | HTTP POST `/correcciones` | Recibe solicitudes de corrección o remoción. |
+| `purgeExpiredRecords` | Scheduled (diaria) | Purga o refresca documentos con `expires_at` vencido. Cumplimiento ToS. |
+| `computeCoverageStats` | Scheduled (diaria) | Precalcula la matriz zona × especialidad para la auditoría de sesgo. |
+
+---
+
+## 4. Roles del Equipo (4 personas)
+
+| Rol | Responsabilidad principal | Entregable diferenciador |
+|---|---|---|
+| **Infra/Seguridad** | Proyecto GCP/Firebase, billing alerts, cuotas API, IP whitelist, restricción de API key | Modelo de amenazas + `access_log` + rate limit |
+| **Recolección de datos** | Función de recolección, estrategia de keywords, calidad de datos | `collection_runs` + telemetría de costo por registro |
+| **Backend/API** | Endpoint `/directorio`, paginación, filtros, validaciones | TTL 30 días + purga + endpoint de correcciones |
+| **Frontend/Docs** | UI, Hosting, documentación, diagrama | Heatmap de cobertura + Data Card publicada |
+
+Cada integrante configura su propio proyecto GCP y es responsable de su gasto individual.
+
+---
+
+## 5. Setup Previo (antes de escribir código)
+
+1. Crear proyecto Firebase/GCP por integrante.
+2. Configurar **alertas de billing** en 50% y 90% del presupuesto → screenshot (entregable Semana 1).
+3. Establecer **cuota máxima diaria** de llamadas en consola de APIs (Places API).
+4. Restringir la **API key de Places** en consola GCP para que solo funcione desde IPs del proyecto.
+5. Guardar API key en variables de entorno (`.env`, nunca en código; agregar a `.gitignore`).
+6. Instalar Firebase CLI + emulador local. Regla: 90% del desarrollo en emulador, deploy a prod solo para pruebas finales.
+7. Configurar GitHub Actions con emulador de Firebase para pruebas de integración sin costo de API.
+
+---
+
+## 6. Cumplimiento de los ToS de Google Maps Platform
+
+**Restricción real:** los Términos de Servicio de Google Maps Platform permiten almacenar `place_id` de forma indefinida, pero el resto del contenido de Places solo puede cachearse de forma temporal, con un máximo de **30 días calendario consecutivos**.
+
+Un proyecto que guarda nombres, teléfonos y direcciones "para siempre porque es académico" está en incumplimiento. Nuestra implementación:
+
+- Todo documento lleva `expires_at = fecha_recoleccion + 30 días`.
+- `purgeExpiredRecords` corre a diario vía Cloud Scheduler:
+  - **Refresco:** re-consulta por `place_id` (identificador persistente permitido), reemplaza el contenido y renueva `expires_at`.
+  - **Purga:** si la re-consulta falla o el presupuesto no lo permite, elimina el contenido y conserva únicamente `place_id`.
+- `obtenerDirectorio` nunca devuelve documentos vencidos, aunque sigan en la base.
+- Política TTL de Firestore configurada como red de seguridad sobre `expires_at`.
+- Se registra evidencia: log de ejecuciones de purga para mostrar en la demo.
+
+**En la documentación se cita la cláusula específica de los ToS.** Esta es la diferencia entre declarar cumplimiento y demostrarlo.
+
+---
+
+## 7. Auditoría de Cobertura y Sesgo
+
+**Hipótesis:** Google Places no representa Ciudad de Guatemala de forma uniforme. Las clínicas de zonas con mayor poder adquisitivo (10, 14, 15) tienen presencia digital consolidada; zonas como 3, 6, 18 o 21 aparecen subrepresentadas — no porque haya menos médicos, sino porque hay menos digitalización.
+
+**Método:** con los mismos datos que ya recolectamos (costo adicional de API ≈ 0), calculamos por celda zona × especialidad:
+
+- número de búsquedas ejecutadas
+- resultados únicos obtenidos
+- % de registros con teléfono
+- % de registros con sitio web
+
+**Entregable:** heatmap en la UI + tabla en la documentación.
+
+**Hallazgo esperado a documentar:**
+
+> El directorio construido a partir de Google Places subrepresenta sistemáticamente las zonas de menor ingreso de Ciudad de Guatemala. Usar este dataset para asignar recursos de salud, planificar cobertura o evaluar oferta médica amplificaría la brecha digital existente: las zonas menos digitalizadas aparecerían como zonas sin médicos.
+
+Esto convierte el proyecto de "recolectamos un directorio" a "auditamos una fuente de datos", que es exactamente el objeto del curso.
+
+---
+
+## 8. Estrategia de Keywords
+
+- Combinar especialidad + zona: `"cardiólogo zona 10 Guatemala"`, `"clínica pediátrica zona 1"`.
+- Probar variantes por inconsistencia de nomenclatura en Google Maps: `"médico"`, `"doctor"`, `"clínica"`, `"consultorio"` + especialidad.
+- Mantener tabla de especialidades objetivo (cardiología, pediatría, dermatología, ginecología, ortopedia, oftalmología, traumatología, psiquiatría) × zonas relevantes (1–18).
+- **Cobertura balanceada obligatoria:** el mismo número de búsquedas por zona, independientemente del rendimiento. Concentrar esfuerzo donde "sí hay resultados" contaminaría la auditoría de la sección 7.
+- Registrar cada `keyword_usado` y `run_id` junto al resultado para trazabilidad.
+- Deduplicar por `place_id` (idempotente al reinsertar).
+- Documentar honestamente campos vacíos — no inventar ni inferir datos.
+
+---
+
+## 9. Normalización de Especialidades (decisión de diseño)
+
+Google Places devuelve texto libre: `"Dr. Juan Pérez - Cardiología y Medicina Interna"`, `"Clínica del Corazón"`, `"Centro Médico Especializado"`. Normalizar a una taxonomía es donde aparece la tensión ética del proyecto.
+
+**Opción A — reglas determinísticas (por defecto).** Diccionario de términos y sinónimos, sin modelo. Predecible, auditable, sin alucinación.
+
+**Opción B — normalización asistida por LLM (opcional).** Si se implementa:
+
+- `especialidad_raw` se conserva intacta, nunca se sobrescribe
+- se agrega `especialidad_normalizada`, `confidence` y `model_version`
+- por debajo del umbral de confianza → `needs_review`, nunca se publica automáticamente
+- set de evaluación etiquetado a mano (≥100 registros), precisión reportada con honestidad
+- casos de falla documentados explícitamente
+
+**Cualquiera de las dos se documenta con su justificación.** Si elegimos A, el registro de decisión dice: una especialidad alucinada puede derivar en daño al paciente, y el costo de un error supera la ganancia de cobertura. Lo que no puntúa es no tomar postura.
+
+---
+
+## 10. Cronograma por Semana
+
+### Semana 1 — Infraestructura y Seguridad (20%)
+- [ ] Proyecto Firebase/GCP configurado (todos los integrantes)
+- [ ] Billing alerts activas + screenshot
+- [ ] Cuota diaria de llamadas API configurada
+- [ ] Función `hello world` desplegada (Functions v2)
+- [ ] Middleware de IP whitelist funcionando (403 si IP no autorizada)
+- [ ] `access_log` registrando 403 y 200
+- [ ] API key en variables de entorno, restringida en GCP
+- [ ] Repo inicializado, `.gitignore` con `.env`, estructura de carpetas
+- [ ] CI con emulador de Firebase corriendo en GitHub Actions
+
+### Semana 2 — Recolección y Trazabilidad (20%)
+- [ ] Función `recolectarMedicos` operativa (límite 20/invocación)
+- [ ] Colección `collection_runs` registrando keyword, costo estimado, nuevos vs. duplicados
+- [ ] Estrategia de keywords documentada (tabla especialidad × zona, cobertura balanceada)
+- [ ] Deduplicación por `place_id` verificada
+- [ ] `missing_fields` poblado — nunca cadenas vacías
+- [ ] `expires_at` escrito en cada documento
+
+### Semana 3 — API, Cumplimiento y UI (20%)
+- [ ] Endpoint `GET /directorio` con paginación (`page`, `pageSize` máx. 50)
+- [ ] Filtros por `especialidad` y `zona`; excluye expirados y `suppressed`
+- [ ] `purgeExpiredRecords` desplegada y ejecutándose a diario
+- [ ] `computeCoverageStats` desplegada
+- [ ] `POST /correcciones` operativo
+- [ ] UI: buscador, tabla, badge de antigüedad del dato, aviso de "no validación médica"
+- [ ] Heatmap de cobertura en la UI
+- [ ] Rate limit por IP + App Check en la UI
+- [ ] Pruebas end-to-end contra emulador y luego producción
+
+### Semana 4 — Documentación y Cierre (25% + 15%)
+- [ ] Documentación técnica (máx. 5 páginas)
+- [ ] Diagrama de arquitectura
+- [ ] **Data Card** del dataset publicada (`/datacard` + PDF)
+- [ ] Modelo de amenazas de la IP whitelist
+- [ ] Sección "Postura ética" (ver sección 13)
+- [ ] Informe de auditoría de cobertura con números reales
+- [ ] Telemetría de costo: total, registros únicos, costo por registro
+- [ ] Ensayo de presentación (20 min, demo en vivo)
+
+---
+
+## 11. Seguridad y Modelo de Amenazas
+
+Implementamos la IP whitelist como se solicita, y documentamos por qué no basta.
+
+**Implementación:**
+- Middleware como primer paso de la request; si falla, retorna 403 sin ejecutar lógica adicional.
+- `req.ip` derivado solo del proxy de confianza de Cloud Functions. **No** confiar en `X-Forwarded-For` crudo — es falsificable por el cliente.
+- Toda decisión (200/403/429) se registra en `access_log`.
+
+**Limitaciones documentadas:**
+
+| Debilidad | Impacto | Mitigación aplicada |
+|---|---|---|
+| `X-Forwarded-For` falsificable si se lee mal | Bypass total de la whitelist | Uso de `req.ip` confiable; test automatizado que envía el header falso y espera 403 |
+| No hay autenticación, solo ubicación de red | Cualquiera dentro de la IP permitida accede | Rate limit por IP + auditoría |
+| IPs dinámicas / red móvil rompen el acceso | Falsos negativos | Documentado como limitación operativa real |
+| No protege contra abuso desde IP autorizada | Extracción masiva del dataset | Rate limit + paginación con tope de 50 |
+
+**Defensa en profundidad añadida:** Firebase App Check en la UI, rate limit por IP, `access_log` auditable, API key restringida en consola GCP.
+
+**Alternativa avanzada (opcional):** Cloud Armor — si se implementa, documentar diferencias vs. middleware.
+
+---
+
+## 12. Derechos de los Titulares de Datos
+
+Los médicos listados no consintieron aparecer en este directorio; su información es pública en Google Maps, lo cual no es lo mismo que consentimiento para redistribución.
+
+- `POST /correcciones` permite solicitar corrección o remoción.
+- Una remoción marca `suppressed: true`, y la marca **sobrevive a recolecciones futuras** — no reaparece en la siguiente corrida.
+- Cola de revisión con estados `pendiente | aplicada | rechazada`.
+- La UI muestra el mecanismo de contacto de forma visible, no escondido en un pie de página.
+
+---
+
+## 13. Postura Ética
+
+- **ToS:** cumplimiento de la ventana de 30 días implementado en código (sección 6), no declarado en prosa.
+- **No fabricación:** no se agregan ni infieren datos ausentes. Los campos faltantes se guardan como `null` con `missing_fields`, y la UI muestra "No reportado en la fuente" — nunca un espacio en blanco que parezca dato.
+- **Sesgo de fuente:** publicamos la auditoría de cobertura y el hallazgo sobre subrepresentación por zona (sección 7).
+- **Uso previsto y usos prohibidos:** el directorio es referencia informativa, no validación de credenciales médicas. Se declara explícitamente en UI y Data Card.
+- **Frescura:** `fecha_recoleccion` visible en todo dato mostrado o exportado, con antigüedad en días.
+- **Derechos de terceros:** mecanismo de corrección y remoción operativo (sección 12).
+- **Alcance:** los datos no se redistribuyen como producto independiente; el alcance es estrictamente académico.
+
+### Data Card del dataset
+
+Formato basado en el Data Cards Playbook de Google. Secciones:
+
+1. Motivación y uso previsto
+2. Composición (campos, volumen, cobertura geográfica)
+3. Procedimiento de recolección (keywords, fechas, costo)
+4. Preprocesamiento y normalización
+5. **Limitaciones conocidas** (aquí entran los números de la auditoría de cobertura)
+6. **Usos prohibidos**
+7. Mantenimiento, frescura y política de retención
+8. Contacto para correcciones
+
+---
+
+## 14. Telemetría de Costo
+
+`collection_runs` permite reportar números concretos en lugar de "gastamos poco":
+
+- gasto total en USD
+- registros únicos obtenidos
+- **costo por médico único**
+- tasa de duplicados (mide la eficiencia de la estrategia de keywords)
+- costo por zona — revela dónde la fuente rinde menos
+
+Estos números entran directo en la presentación y demuestran disciplina de FinOps, no solo que no se reventó el crédito.
+
+---
+
+## 15. Pruebas
+
+- Pruebas de integración contra el emulador de Firebase en GitHub Actions, costo de API cero.
+- Casos mínimos cubiertos:
+  - IP no autorizada → 403
+  - `X-Forwarded-For` falsificado → 403
+  - Paginación respeta `pageSize` máx. 50
+  - Documento con `expires_at` vencido no aparece en `/directorio`
+  - `purgeExpiredRecords` conserva `place_id` y elimina contenido
+  - Registro con `suppressed: true` no reaparece tras re-recolección
+  - Reinserción del mismo `place_id` no duplica
+
+---
+
+## 16. Riesgos y Mitigaciones
+
+| Riesgo | Mitigación |
+|---|---|
+| Gasto excede crédito $200 USD | Cuotas diarias + alertas 50/90% + desarrollo en emulador + telemetría de costo por corrida |
+| Datos duplicados | `place_id` como ID de documento (upsert natural) |
+| Nomenclatura inconsistente en Maps | Estrategia de keywords documentada y probada antes de recolección masiva |
+| Exposición de API key | Variables de entorno + restricción por IP en GCP |
+| Acceso no autorizado a API | IP whitelist + rate limit + App Check + `access_log` |
+| **Incumplimiento de ToS por almacenamiento indefinido** | TTL de 30 días + purga automatizada + política TTL de Firestore |
+| **Auditoría de sesgo contaminada por recolección desbalanceada** | Cobertura balanceada obligatoria por zona (sección 8) |
+| Purga elimina datos justo antes de la demo | Refresco programado 48h antes; snapshot de respaldo para presentación |
+
+---
+
+## 17. Entregables Finales
+
+1. Documentación técnica (≤5 páginas)
+2. Diagrama de arquitectura
+3. Sección "Postura ética"
+4. **Data Card del dataset**
+5. **Informe de auditoría de cobertura** (heatmap + hallazgo)
+6. **Modelo de amenazas de la IP whitelist**
+7. Repositorio con código fuente (Functions + UI + pruebas + CI)
+8. Demo en vivo desplegada en Firebase Hosting
+9. Presentación de 20 minutos
+
+---
+
+## 18. Guion de Presentación (20 min)
+
+No demostrar un CRUD. Demostrar el argumento.
+
+| Tiempo | Contenido |
+|---|---|
+| 1 min | Qué construimos: 1,2XX médicos, $XX.XX, costo por registro |
+| 5 min | **Auditamos nuestros propios datos** → heatmap de cobertura → la brecha digital |
+| 3 min | **Encontramos un problema de ToS** → ventana de 30 días → purga corriendo en vivo |
+| 3 min | Demo de whitelist: 403 en vivo, header falsificado también 403, `access_log` |
+| 3 min | Por qué la whitelist no basta → modelo de amenazas |
+| 2 min | Data Card + endpoint de correcciones |
+| 2 min | **Para qué NO debe usarse este dataset** |
+| 1 min | Cierre y preguntas |
+
+Cerrar con los límites del dataset, no con el buscador.
+
+---
+
+## 19. Prioridad si el Tiempo se Reduce
+
+Si hay que recortar, el orden de defensa es:
+
+1. Cumplimiento de ToS con TTL y purga (sección 6)
+2. Auditoría de cobertura y sesgo (sección 7)
+3. Modelo de amenazas de la whitelist (sección 11)
+4. Trazabilidad y telemetría de costo (secciones 3 y 14)
+
+Lo primero en caerse: normalización con LLM (sección 9, opción B), dedup difusa, y refinamiento visual de la UI.
