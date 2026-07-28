@@ -2,6 +2,9 @@
 .env
 .env.local
 
+# Local Firebase project alias (each team member points to their own GCP/Firebase project)
+.firebaserc
+
 # Dependencies
 node_modules/
 
