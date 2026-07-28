@@ -2,6 +2,7 @@ import * as admin from "firebase-admin";
 import { onRequest } from "firebase-functions/v2/https";
 import express from "express";
 import { ipWhitelist } from "./middleware/ipWhitelist";
+import { recolectarMedicosHandler } from "./recolectarMedicos";
 
 admin.initializeApp();
 
@@ -18,3 +19,9 @@ directorioApp.get("/directorio", (req, res) => {
 });
 
 export const obtenerDirectorio = onRequest(directorioApp);
+
+const recolectarApp = express();
+recolectarApp.use(ipWhitelist(process.env.IP_WHITELIST));
+recolectarApp.get("/recolectarMedicos", recolectarMedicosHandler);
+
+export const recolectarMedicos = onRequest(recolectarApp);

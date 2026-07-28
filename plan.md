@@ -186,23 +186,23 @@ Google Places devuelve texto libre: `"Dr. Juan Pérez - Cardiología y Medicina 
 ## 10. Cronograma por Semana
 
 ### Semana 1 — Infraestructura y Seguridad (20%)
-- [ ] Proyecto Firebase/GCP configurado (todos los integrantes)
-- [ ] Billing alerts activas + screenshot
-- [ ] Cuota diaria de llamadas API configurada
-- [ ] Función `hello world` desplegada (Functions v2)
-- [ ] Middleware de IP whitelist funcionando (403 si IP no autorizada)
+- [ ] Proyecto Firebase/GCP configurado (todos los integrantes) — Diego listo, faltan 3 compañeros
+- [x] Billing alerts activas + screenshot
+- [x] Cuota diaria de llamadas API configurada
+- [x] Función `hello world` desplegada (Functions v2)
+- [x] Middleware de IP whitelist funcionando (403 si IP no autorizada) — probado con IP autorizada, no autorizada y spoof de `X-Forwarded-For`
 - [ ] `access_log` registrando 403 y 200
-- [ ] API key en variables de entorno, restringida en GCP
-- [ ] Repo inicializado, `.gitignore` con `.env`, estructura de carpetas
+- [x] API key en variables de entorno, restringida en GCP
+- [x] Repo inicializado, `.gitignore` con `.env`, estructura de carpetas
 - [ ] CI con emulador de Firebase corriendo en GitHub Actions
 
 ### Semana 2 — Recolección y Trazabilidad (20%)
-- [ ] Función `recolectarMedicos` operativa (límite 20/invocación)
-- [ ] Colección `collection_runs` registrando keyword, costo estimado, nuevos vs. duplicados
-- [ ] Estrategia de keywords documentada (tabla especialidad × zona, cobertura balanceada)
-- [ ] Deduplicación por `place_id` verificada
-- [ ] `missing_fields` poblado — nunca cadenas vacías
-- [ ] `expires_at` escrito en cada documento
+- [x] Función `recolectarMedicos` operativa (límite 20/invocación)
+- [x] Colección `collection_runs` registrando keyword, costo estimado, nuevos vs. duplicados
+- [x] Estrategia de keywords documentada (tabla especialidad × zona, cobertura balanceada)
+- [x] Deduplicación por `place_id` verificada
+- [x] `missing_fields` poblado — nunca cadenas vacías
+- [x] `expires_at` escrito en cada documento
 
 ### Semana 3 — API, Cumplimiento y UI (20%)
 - [ ] Endpoint `GET /directorio` con paginación (`page`, `pageSize` máx. 50)
