@@ -10,7 +10,9 @@
     "serve": "npm run build && firebase emulators:start --only functions,firestore,hosting",
     "shell": "npm run build && firebase functions:shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "test": "node --test",
+    "test:emulator": "npm run build && firebase emulators:exec --project demo-test --only functions,firestore \"npm test\""
   },
   "dependencies": {
     "express": "^4.21.0",

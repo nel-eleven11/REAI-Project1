@@ -191,10 +191,10 @@ Google Places devuelve texto libre: `"Dr. Juan Pérez - Cardiología y Medicina 
 - [x] Cuota diaria de llamadas API configurada
 - [x] Función `hello world` desplegada (Functions v2)
 - [x] Middleware de IP whitelist funcionando (403 si IP no autorizada) — probado con IP autorizada, no autorizada y spoof de `X-Forwarded-For`
-- [ ] `access_log` registrando 403 y 200
+- [x] `access_log` registrando 403 y 200
 - [x] API key en variables de entorno, restringida en GCP
 - [x] Repo inicializado, `.gitignore` con `.env`, estructura de carpetas
-- [ ] CI con emulador de Firebase corriendo en GitHub Actions
+- [x] CI con emulador de Firebase corriendo en GitHub Actions
 
 ### Semana 2 — Recolección y Trazabilidad (20%)
 - [x] Función `recolectarMedicos` operativa (límite 20/invocación)
