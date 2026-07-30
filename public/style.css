@@ -1,0 +1,283 @@
+:root {
+  --color-bg: #f5f7fa;
+  --color-panel: #ffffff;
+  --color-border: #d7dde3;
+  --color-text: #1f2933;
+  --color-muted: #5a6b7b;
+  --color-warning-bg: #fff4e0;
+  --color-warning-border: #e0a94a;
+  --color-primary: #1f6feb;
+  --color-primary-hover: #185ac2;
+  --color-danger: #c0392b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.site-header {
+  padding: 1.5rem 2rem 0.5rem;
+}
+
+.site-header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--color-muted);
+}
+
+.banner {
+  margin: 0 2rem 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.banner-warning {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  color: #6b4a12;
+}
+
+main {
+  padding: 0 2rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+}
+
+.panel h2 {
+  margin-top: 0;
+  font-size: 1.15rem;
+}
+
+.hint {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.search-form,
+.correction-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.search-form label,
+.correction-form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  gap: 0.25rem;
+  flex: 1 1 180px;
+}
+
+.correction-form textarea {
+  min-height: 4.5rem;
+  font-family: inherit;
+}
+
+select,
+input,
+textarea {
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+button {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 0.55rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+button:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+button:disabled {
+  background: #a9b6c2;
+  cursor: not-allowed;
+}
+
+.status-line {
+  min-height: 1.2em;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  margin: 0.5rem 0 0;
+}
+
+.status-line.error {
+  color: var(--color-danger);
+}
+
+.directory-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.directory-table th,
+.directory-table td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.directory-table th {
+  color: var(--color-muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.empty-row {
+  text-align: center;
+  color: var(--color-muted);
+  padding: 1.5rem 0;
+}
+
+.field-missing {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.age-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.age-fresh {
+  background: #dff5e1;
+  color: #226b33;
+}
+
+.age-aging {
+  background: #fff2cc;
+  color: #8a6d1a;
+}
+
+.age-stale {
+  background: #fbdada;
+  color: #92281c;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.legend-0 { background: #f4f6f8; }
+.legend-25 { background: #cfe8ff; }
+.legend-50 { background: #7fbcf5; }
+.legend-75 { background: #2f7fd6; }
+.legend-100 { background: #14468f; }
+
+.heatmap-container {
+  overflow-x: auto;
+}
+
+.heatmap-table {
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  min-width: 100%;
+}
+
+.heatmap-table th,
+.heatmap-table td {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 0.35rem 0.5rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.heatmap-table th {
+  background: var(--color-panel);
+  color: var(--color-muted);
+  position: sticky;
+  top: 0;
+}
+
+.heatmap-row-label {
+  text-align: left !important;
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-panel);
+}
+
+.heatmap-cell {
+  color: #10233f;
+  font-weight: 600;
+}
+
+.heatmap-empty {
+  color: var(--color-muted);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.site-footer {
+  padding: 1.5rem 2rem 3rem;
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+.site-footer a {
+  color: var(--color-primary);
+}

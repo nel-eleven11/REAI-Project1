@@ -205,15 +205,16 @@ Google Places devuelve texto libre: `"Dr. Juan Pérez - Cardiología y Medicina 
 - [x] `expires_at` escrito en cada documento
 
 ### Semana 3 — API, Cumplimiento y UI (20%)
-- [ ] Endpoint `GET /directorio` con paginación (`page`, `pageSize` máx. 50)
-- [ ] Filtros por `especialidad` y `zona`; excluye expirados y `suppressed`
-- [ ] `purgeExpiredRecords` desplegada y ejecutándose a diario
-- [ ] `computeCoverageStats` desplegada
-- [ ] `POST /correcciones` operativo
-- [ ] UI: buscador, tabla, badge de antigüedad del dato, aviso de "no validación médica"
-- [ ] Heatmap de cobertura en la UI
-- [ ] Rate limit por IP + App Check en la UI
-- [ ] Pruebas end-to-end contra emulador y luego producción
+- [x] Endpoint `GET /directorio` con paginación (`page`, `pageSize` máx. 50)
+- [x] Filtros por `especialidad` y `zona`; excluye expirados y `suppressed`
+- [x] `purgeExpiredRecords` desplegada y ejecutándose a diario
+- [x] `computeCoverageStats` desplegada
+- [x] `POST /correcciones` operativo
+- [x] UI: buscador, tabla, badge de antigüedad del dato, aviso de "no validación médica"
+- [x] Heatmap de cobertura en la UI
+- [x] Rate limit por IP + App Check en la UI
+- [x] Pruebas end-to-end contra emulador y luego producción
+
 
 ### Semana 4 — Documentación y Cierre (25% + 15%)
 - [ ] Documentación técnica (máx. 5 páginas)

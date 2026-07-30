@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Directorio de Médicos Especialistas — Ciudad de Guatemala</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>Directorio de Médicos Especialistas</h1>
+    <p class="subtitle">Ciudad de Guatemala — dataset recolectado desde Google Places</p>
+  </header>
+
+  <!-- Ethical posture banner (plan.md section 13): must be visible, not
+       hidden in a footer. This is NOT a medical credential validator. -->
+  <div class="banner banner-warning" role="alert">
+    ⚠️ Este directorio es una referencia informativa. <strong>No valida credenciales médicas</strong>
+    ni la vigencia de colegiaturas. No lo use para decisiones clínicas ni de emergencia.
+  </div>
+
+  <main>
+    <section class="panel" id="search-panel">
+      <h2>Buscar médicos</h2>
+      <form id="search-form" class="search-form">
+        <label>
+          Especialidad
+          <select id="filter-especialidad">
+            <option value="">Todas</option>
+          </select>
+        </label>
+        <label>
+          Zona
+          <select id="filter-zona">
+            <option value="">Todas</option>
+          </select>
+        </label>
+        <label>
+          Resultados por página
+          <select id="filter-pagesize">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50 (máx.)</option>
+          </select>
+        </label>
+        <button type="submit" id="search-button">Buscar</button>
+      </form>
+      <p id="search-status" class="status-line" aria-live="polite"></p>
+    </section>
+
+    <section class="panel">
+      <table class="directory-table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Especialidad</th>
+            <th>Dirección</th>
+            <th>Teléfono</th>
+            <th>Sitio web</th>
+            <th>Antigüedad del dato</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="results-body">
+          <tr><td colspan="7" class="empty-row">Sin resultados todavía — presiona "Buscar".</td></tr>
+        </tbody>
+      </table>
+      <div class="pagination">
+        <button id="prev-page" disabled>&larr; Anterior</button>
+        <span id="page-indicator">Página 1</span>
+        <button id="next-page" disabled>Siguiente &rarr;</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Auditoría de cobertura (heatmap zona × especialidad)</h2>
+      <p class="hint">
+        Mide qué tan bien representa Google Places cada combinación de zona y especialidad —
+        no cuántos médicos existen realmente. Celdas vacías o pálidas sugieren baja
+        digitalización, no ausencia de médicos. Ver <a href="/plan.md">plan.md sección 7</a>.
+      </p>
+      <div id="heatmap-legend" class="heatmap-legend">
+        <span>% con teléfono:</span>
+        <span class="legend-swatch legend-0"></span> 0%
+        <span class="legend-swatch legend-25"></span> 25%
+        <span class="legend-swatch legend-50"></span> 50%
+        <span class="legend-swatch legend-75"></span> 75%
+        <span class="legend-swatch legend-100"></span> 100%
+      </div>
+      <div id="heatmap-container" class="heatmap-container">
+        <p class="status-line">Cargando datos de cobertura...</p>
+      </div>
+    </section>
+
+    <section class="panel" id="corrections-panel">
+      <h2>Solicitar corrección o remoción</h2>
+      <p class="hint">
+        Si tus datos aparecen en este directorio y no autorizaste su publicación, o si un dato
+        es incorrecto, puedes solicitar su corrección o remoción aquí. Las remociones se
+        aplican de inmediato; las correcciones quedan pendientes de revisión humana.
+      </p>
+      <form id="correction-form" class="correction-form">
+        <label>
+          Place ID
+          <input type="text" id="correction-place-id" required placeholder="ej. ChIJ..." />
+        </label>
+        <label>
+          Tipo de solicitud
+          <select id="correction-tipo">
+            <option value="correccion">Corrección de datos</option>
+            <option value="remocion">Remoción / no autorizo aparecer</option>
+          </select>
+        </label>
+        <label>
+          Mensaje
+          <textarea id="correction-mensaje" required placeholder="Describe el problema o la solicitud"></textarea>
+        </label>
+        <button type="submit" id="correction-submit">Enviar solicitud</button>
+      </form>
+      <p id="correction-status" class="status-line" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Proyecto académico — Ministerio de Educación de Guatemala (contexto simulado). Ver
+      <a href="/plan.md">plan.md</a> para la documentación completa, postura ética y modelo de amenazas.</p>
+  </footer>
+
+  <!-- Local, gitignored config (Firebase project keys, App Check site key). -->
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

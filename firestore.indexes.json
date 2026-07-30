@@ -8,6 +8,22 @@
         { "fieldPath": "zona", "order": "ASCENDING" },
         { "fieldPath": "fecha_recoleccion", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "medicos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "especialidad_raw", "order": "ASCENDING" },
+        { "fieldPath": "fecha_recoleccion", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "medicos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "zona", "order": "ASCENDING" },
+        { "fieldPath": "fecha_recoleccion", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

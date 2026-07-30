@@ -69,3 +69,15 @@ export async function computeCoverageStats(): Promise<CoverageStats[]> {
   await batch.commit();
   return stats;
 }
+
+/**
+ * Reads the precomputed coverage_stats collection for the /coverage
+ * endpoint. Does not recompute anything — that's computeCoverageStats'
+ * job, run daily by the scheduler (plan.md section 3).
+ */
+export async function readCoverageStats(): Promise<CoverageStats[]> {
+  const db = admin.firestore();
+  const snapshot = await db.collection("coverage_stats").get();
+  return snapshot.docs.map((doc) => doc.data() as CoverageStats);
+}
+
