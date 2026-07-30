@@ -3,7 +3,8 @@
     "source": "functions",
     "runtime": "nodejs20",
     "predeploy": [
-      "npm --prefix functions run build"
+      "npm --prefix functions run build",
+      "node functions/scripts/check-app-check-enforce.js"
     ]
   },
   "firestore": {

@@ -251,6 +251,8 @@ Implementamos la IP whitelist como se solicita, y documentamos por qué no basta
 
 **Defensa en profundidad añadida:** Firebase App Check en la UI, rate limit por IP, `access_log` auditable, API key restringida en consola GCP.
 
+**Cierre del hueco de configuración de App Check:** `APP_CHECK_ENFORCE` no bastaba con existir en código — si nadie lo ponía en `true` al desplegar, quedaba inerte sin ninguna señal visible salvo un log de Cloud Functions que nadie revisa. `firebase.json` ahora corre `functions/scripts/check-app-check-enforce.js` como predeploy: si el proyecto destino no es de emulador (`demo-*`) y falta `APP_CHECK_ENFORCE=true`, **el deploy se aborta**. Declarar la variable ya no es suficiente para "cumplir" — el pipeline lo hace cumplir.
+
 **Alternativa avanzada (opcional):** Cloud Armor — si se implementa, documentar diferencias vs. middleware.
 
 ---

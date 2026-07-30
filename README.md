@@ -92,6 +92,11 @@ Para activar App Check de verdad:
 Mientras no se complete este setup, la whitelist de IP sigue siendo el control principal — App
 Check es una capa adicional, no un reemplazo (ver plan.md sección 11, "Limitaciones documentadas").
 
+**Gate de despliegue:** `firebase.json` corre `functions/scripts/check-app-check-enforce.js` como
+predeploy. Si el proyecto destino no es uno demo (`demo-*`, solo emulador) y no encuentra
+`APP_CHECK_ENFORCE=true` en `functions/.env` o `functions/.env.<project-id>`, **aborta el deploy**
+en vez de dejar pasar el hueco silenciosamente a producción.
+
 ## Pruebas end-to-end
 
 Además de las pruebas unitarias/de integración por endpoint (`functions/test/*.test.js`), hay un
