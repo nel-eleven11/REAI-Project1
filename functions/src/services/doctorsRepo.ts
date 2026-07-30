@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import type { Doctor, CollectionRun } from "../types/doctor";
 import type { PlaceWithDetails } from "./placesClient";
+import { normalizeSpecialty } from "./specialtyNormalizer";
 
 const RETENTION_DAYS = 30;
 const COST_PER_CALL_USD = 0.017;
@@ -38,10 +39,14 @@ export async function saveDoctors(
     if (!place.telefono) missingFields.push("telefono");
     if (!place.sitio_web) missingFields.push("sitio_web");
 
+    const normalization = normalizeSpecialty(place.nombre);
+
     // suppressed survives re-collection: only set on first insert, never reset.
     const doctor: Omit<Doctor, "suppressed"> & { suppressed?: boolean } = {
       nombre: place.nombre,
       especialidad_raw: specialty,
+      especialidad_normalizada: normalization.especialidad_normalizada,
+      confidence: normalization.confidence,
       direccion: place.direccion,
       telefono: place.telefono,
       sitio_web: place.sitio_web,

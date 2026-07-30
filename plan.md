@@ -45,9 +45,9 @@ Tres afirmaciones que sostenemos con código y números, no con párrafos:
 ```
 medicos/{place_id}
   nombre
-  especialidad_raw            # texto original de la fuente, nunca se sobrescribe
-  especialidad_normalizada?   # opcional, ver sección 9
-  confidence?                 # confianza de la normalización
+  especialidad_raw            # especialidad usada para la búsqueda, nunca se sobrescribe
+  especialidad_normalizada    # derivada de `nombre` por reglas determinísticas | null, ver sección 9
+  confidence                  # 0.9 si hubo match, 0 si no | null
   direccion
   telefono        | null
   sitio_web       | null
@@ -173,21 +173,16 @@ Esto convierte el proyecto de "recolectamos un directorio" a "auditamos una fuen
 
 ---
 
-## 9. Normalización de Especialidades (decisión de diseño)
+## 9. Normalización de Especialidades (decisión de diseño) — IMPLEMENTADA: Opción A
 
-Google Places devuelve texto libre: `"Dr. Juan Pérez - Cardiología y Medicina Interna"`, `"Clínica del Corazón"`, `"Centro Médico Especializado"`. Normalizar a una taxonomía es donde aparece la tensión ética del proyecto.
+Google Places no tiene un campo de especialidad médica; lo único disponible es el `nombre` del negocio como texto libre (`"Dr. Juan Pérez - Cardiología y Medicina Interna"`, `"Clínica del Corazón"`, `"Centro Médico Especializado"`).
 
-**Opción A — reglas determinísticas (por defecto).** Diccionario de términos y sinónimos, sin modelo. Predecible, auditable, sin alucinación.
+**Decisión: reglas determinísticas, sin modelo.** Un diccionario de raíces por especialidad (`functions/src/services/specialtyNormalizer.ts`) escanea `nombre` (sin distinguir acentos ni género/número) y, si encuentra una coincidencia, llena `especialidad_normalizada` con confianza 0.9; si no encuentra nada, queda `null` con confianza 0 — nunca se inventa una especialidad.
 
-**Opción B — normalización asistida por LLM (opcional).** Si se implementa:
-
-- `especialidad_raw` se conserva intacta, nunca se sobrescribe
-- se agrega `especialidad_normalizada`, `confidence` y `model_version`
-- por debajo del umbral de confianza → `needs_review`, nunca se publica automáticamente
-- set de evaluación etiquetado a mano (≥100 registros), precisión reportada con honestidad
-- casos de falla documentados explícitamente
-
-**Cualquiera de las dos se documenta con su justificación.** Si elegimos A, el registro de decisión dice: una especialidad alucinada puede derivar en daño al paciente, y el costo de un error supera la ganancia de cobertura. Lo que no puntúa es no tomar postura.
+- `especialidad_raw` sigue siendo la especialidad que se usó para buscar (el término de la matriz de keywords), **no** texto extraído de Google — Google no ofrece ese dato.
+- `especialidad_normalizada`/`confidence` son metadata adicional derivada del `nombre`; no se usan para filtrar `/directorio` (eso sigue por `especialidad_raw`), así que no afectan el contrato de la API existente.
+- Se descartó la opción B (LLM) por costo/tiempo: requeriría un set de evaluación etiquetado a mano (≥100 registros) y presupuesto de inferencia no contemplado, sin ganancia clara para el alcance de Semana 4.
+- Registro de la decisión: una especialidad alucinada puede derivar en daño al paciente; el costo de ese error supera la ganancia de cobertura de un LLM.
 
 ---
 

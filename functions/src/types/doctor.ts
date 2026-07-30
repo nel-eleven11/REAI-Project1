@@ -2,6 +2,8 @@
 export interface Doctor {
   nombre: string;
   especialidad_raw: string;
+  especialidad_normalizada: string | null;
+  confidence: number | null;
   direccion: string;
   telefono: string | null;
   sitio_web: string | null;
