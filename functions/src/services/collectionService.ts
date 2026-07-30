@@ -17,15 +17,15 @@ export async function collectAndSave(
   apiKey: string
 ): Promise<CollectionOutcome> {
   const runId = randomUUID();
-  const { places, apiCalls } = await searchPlaces(keyword, apiKey);
+  const { places, textSearchCalls, detailsCalls } = await searchPlaces(keyword, apiKey);
   const saveResult = await saveDoctors(places, keyword, zone, specialty, runId);
-  await saveCollectionRun(runId, keyword, zone, apiCalls, saveResult);
+  await saveCollectionRun(runId, keyword, zone, specialty, textSearchCalls, detailsCalls, saveResult);
 
   return {
     runId,
     resultsTotal: places.length,
     resultsNew: saveResult.resultsNew,
     resultsDuplicated: saveResult.resultsDuplicated,
-    apiCalls,
+    apiCalls: textSearchCalls + detailsCalls,
   };
 }

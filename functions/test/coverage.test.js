@@ -58,3 +58,39 @@ test("GET /coverage is blocked for a non-whitelisted IP", async () => {
   const res = await fetch(COVERAGE_URL, { headers: { "X-Forwarded-For": "8.8.8.8" } });
   assert.equal(res.status, 403);
 });
+
+test("searches_run counts zero-result collection_runs, distinguishing 'searched, found nothing' from 'never searched'", async () => {
+  const zone = "zona 6";
+  const specialty = "traumatología";
+
+  await admin.firestore().collection("collection_runs").doc(`run-zero-${Date.now()}-a`).set({
+    keyword: "traumatologo zona 6 Guatemala",
+    zona: zone,
+    especialidad: specialty,
+    timestamp: new Date().toISOString(),
+    api_calls: 1,
+    results_new: 0,
+    results_duplicated: 0,
+    estimated_cost_usd: 0.032,
+  });
+  await admin.firestore().collection("collection_runs").doc(`run-zero-${Date.now()}-b`).set({
+    keyword: "clinica traumatologia zona 6 Guatemala",
+    zona: zone,
+    especialidad: specialty,
+    timestamp: new Date().toISOString(),
+    api_calls: 1,
+    results_new: 0,
+    results_duplicated: 0,
+    estimated_cost_usd: 0.032,
+  });
+
+  await computeCoverageStats();
+
+  const res = await fetch(COVERAGE_URL, { headers: WHITELISTED_HEADERS });
+  const body = await res.json();
+  const cell = body.results.find((s) => s.zona === zone && s.especialidad === specialty);
+
+  assert.ok(cell, "a cell with zero results but real searches must still appear");
+  assert.equal(cell.searches_run, 2, "both zero-result runs must be counted");
+  assert.equal(cell.unique_results, 0);
+});

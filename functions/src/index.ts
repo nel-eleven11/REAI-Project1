@@ -14,6 +14,12 @@ admin.initializeApp();
 // Off by default so emulator/CI requests (no token) still pass; see README.
 const appCheckEnforce = process.env.APP_CHECK_ENFORCE === "true";
 
+if (!appCheckEnforce && process.env.FUNCTIONS_EMULATOR !== "true") {
+  console.warn(
+    "APP_CHECK_ENFORCE is not 'true' in a deployed (non-emulator) environment — App Check is not enforced."
+  );
+}
+
 export const helloWorld = onRequest((req, res) => {
   res.status(200).send("Hello world, Diego Pablo");
 });

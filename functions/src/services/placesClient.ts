@@ -38,7 +38,8 @@ export interface PlaceWithDetails {
 
 export interface PlacesSearchOutcome {
   places: PlaceWithDetails[];
-  apiCalls: number;
+  textSearchCalls: number;
+  detailsCalls: number;
 }
 
 export async function searchPlaces(keyword: string, apiKey: string): Promise<PlacesSearchOutcome> {
@@ -54,12 +55,12 @@ export async function searchPlaces(keyword: string, apiKey: string): Promise<Pla
   }
 
   const rawResults = searchBody.results.slice(0, MAX_RESULTS_PER_INVOCATION);
-  let apiCalls = 1;
+  let detailsCalls = 0;
 
   const places: PlaceWithDetails[] = [];
   for (const result of rawResults) {
     const details = await fetchPlaceDetails(result.place_id, apiKey);
-    apiCalls += 1;
+    detailsCalls += 1;
 
     places.push({
       place_id: result.place_id,
@@ -72,7 +73,7 @@ export async function searchPlaces(keyword: string, apiKey: string): Promise<Pla
     });
   }
 
-  return { places, apiCalls };
+  return { places, textSearchCalls: 1, detailsCalls };
 }
 
 async function fetchPlaceDetails(placeId: string, apiKey: string): Promise<DetailsResult | null> {

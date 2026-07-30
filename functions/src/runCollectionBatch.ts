@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { buildKeywordMatrix } from "./config/keywordStrategy";
 import { collectAndSave } from "./services/collectionService";
-import { getNextIndex, advanceNextIndex } from "./services/collectionProgress";
+import { claimNextBatch } from "./services/collectionProgress";
 
 const DEFAULT_BATCH_SIZE = 2;
 const MAX_BATCH_SIZE = 10;
@@ -20,31 +20,36 @@ export async function runCollectionBatchHandler(req: Request, res: Response): Pr
     : DEFAULT_BATCH_SIZE;
 
   const matrix = buildKeywordMatrix();
-  const startIndex = await getNextIndex();
+  const claimed = await claimNextBatch(batchSize, matrix.length);
 
-  if (startIndex >= matrix.length) {
+  if (!claimed) {
     res.status(200).json({ done: true, total_combinations: matrix.length, message: "Matrix fully collected" });
     return;
   }
 
-  const batch = matrix.slice(startIndex, startIndex + batchSize);
-  const outcomes = [];
+  const batch = matrix.slice(claimed.startIndex, claimed.endIndex);
+  const succeeded = [];
+  const failed = [];
 
-  try {
-    for (const combo of batch) {
+  // The cursor is already claimed at this point (avoids duplicate work under
+  // concurrency), so failures are reported per-combo instead of aborting the
+  // request — nothing here silently disappears.
+  for (const combo of batch) {
+    try {
       const outcome = await collectAndSave(combo.keyword, combo.zone, combo.specialty, apiKey);
-      outcomes.push({ keyword: combo.keyword, zone: combo.zone, specialty: combo.specialty, ...outcome });
+      succeeded.push({ keyword: combo.keyword, zone: combo.zone, specialty: combo.specialty, ...outcome });
+    } catch (error) {
+      failed.push({ keyword: combo.keyword, zone: combo.zone, specialty: combo.specialty, error: (error as Error).message });
     }
-    await advanceNextIndex(startIndex + batch.length);
-
-    res.status(200).json({
-      done: false,
-      processed: outcomes.length,
-      next_index: startIndex + batch.length,
-      total_combinations: matrix.length,
-      results: outcomes,
-    });
-  } catch (error) {
-    res.status(502).json({ error: "Failed to query Places API", detail: (error as Error).message });
   }
+
+  res.status(200).json({
+    done: false,
+    processed: succeeded.length,
+    failed: failed.length,
+    next_index: claimed.endIndex,
+    total_combinations: matrix.length,
+    results: succeeded,
+    errors: failed,
+  });
 }

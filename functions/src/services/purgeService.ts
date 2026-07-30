@@ -4,11 +4,14 @@ import { searchPlaceById } from "./placesClient";
 
 const RETENTION_DAYS = 30;
 
+export type PurgeReason = "suppressed" | "no_api_key" | "not_found_in_places" | "refresh_error";
+
 export interface PurgeSummary {
   scanned: number;
   refreshed: number;
   purged: number;
   errors: number;
+  missingApiKey: boolean;
 }
 
 // Places content max 30 days (plan.md section 6). Suppressed doctors are
@@ -17,26 +20,38 @@ export async function purgeExpiredRecords(apiKey: string | undefined): Promise<P
   const db = admin.firestore();
   const nowIso = new Date().toISOString();
 
+  if (!apiKey) {
+    console.warn(
+      "purgeExpiredRecords: PLACES_API_KEY not configured — every expired record will be purged " +
+        "without attempting a refresh. This is a configuration gap, not confirmation the places are gone."
+    );
+  }
+
   const expiredSnap = await db.collection("medicos").where("expires_at", "<=", nowIso).get();
 
-  const summary: PurgeSummary = { scanned: expiredSnap.size, refreshed: 0, purged: 0, errors: 0 };
+  const summary: PurgeSummary = {
+    scanned: expiredSnap.size,
+    refreshed: 0,
+    purged: 0,
+    errors: 0,
+    missingApiKey: !apiKey,
+  };
 
   for (const doc of expiredSnap.docs) {
     const doctor = doc.data() as Doctor;
 
     if (doctor.suppressed) {
-      try {
-        await purgeDocContent(doc.ref, doctor.place_id);
-        summary.purged += 1;
-      } catch (error) {
-        console.error(`purgeExpiredRecords: failed purging suppressed place_id=${doctor.place_id}`, error);
-        summary.errors += 1;
-      }
+      await tryPurge(doc.ref, doctor.place_id, "suppressed", summary);
+      continue;
+    }
+
+    if (!apiKey) {
+      await tryPurge(doc.ref, doctor.place_id, "no_api_key", summary);
       continue;
     }
 
     try {
-      const refreshed = apiKey ? await searchPlaceById(doctor.place_id, apiKey) : null;
+      const refreshed = await searchPlaceById(doctor.place_id, apiKey);
 
       if (refreshed) {
         const expiresAt = new Date(Date.now() + RETENTION_DAYS * 24 * 60 * 60 * 1000);
@@ -57,25 +72,39 @@ export async function purgeExpiredRecords(apiKey: string | undefined): Promise<P
         });
         summary.refreshed += 1;
       } else {
-        await purgeDocContent(doc.ref, doctor.place_id);
-        summary.purged += 1;
+        await tryPurge(doc.ref, doctor.place_id, "not_found_in_places", summary);
       }
     } catch (error) {
       console.error(`purgeExpiredRecords: failed processing place_id=${doctor.place_id}`, error);
-      try {
-        await purgeDocContent(doc.ref, doctor.place_id);
-        summary.purged += 1;
-      } catch (innerError) {
-        console.error(`purgeExpiredRecords: failed purging place_id=${doctor.place_id}`, innerError);
-        summary.errors += 1;
-      }
+      await tryPurge(doc.ref, doctor.place_id, "refresh_error", summary);
     }
   }
 
   return summary;
 }
 
-async function purgeDocContent(ref: FirebaseFirestore.DocumentReference, placeId: string): Promise<void> {
+async function tryPurge(
+  ref: FirebaseFirestore.DocumentReference,
+  placeId: string,
+  reason: PurgeReason,
+  summary: PurgeSummary
+): Promise<boolean> {
+  try {
+    await purgeDocContent(ref, placeId, reason);
+    summary.purged += 1;
+    return true;
+  } catch (error) {
+    console.error(`purgeExpiredRecords: failed purging place_id=${placeId} (reason=${reason})`, error);
+    summary.errors += 1;
+    return false;
+  }
+}
+
+async function purgeDocContent(
+  ref: FirebaseFirestore.DocumentReference,
+  placeId: string,
+  reason: PurgeReason
+): Promise<void> {
   await ref.set(
     {
       place_id: placeId,
@@ -93,6 +122,7 @@ async function purgeDocContent(ref: FirebaseFirestore.DocumentReference, placeId
       fecha_recoleccion: admin.firestore.FieldValue.delete(),
       expires_at: admin.firestore.FieldValue.delete(),
       purged_at: new Date().toISOString(),
+      purge_reason: reason,
     },
     { merge: true }
   );

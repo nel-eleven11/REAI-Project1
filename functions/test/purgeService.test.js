@@ -46,6 +46,7 @@ test("purgeExpiredRecords purges content and keeps place_id when there's no API 
   // No apiKey (undefined) => can't refresh => must purge.
   const summary = await purgeExpiredRecords(undefined);
   assert.ok(summary.scanned >= 1);
+  assert.equal(summary.missingApiKey, true, "summary must flag the missing-key config gap");
 
   const snap = await admin.firestore().collection("medicos").doc(placeId).get();
   const data = snap.data();
@@ -55,6 +56,11 @@ test("purgeExpiredRecords purges content and keeps place_id when there's no API 
   assert.equal(data.telefono, undefined);
   assert.equal(data.direccion, undefined);
   assert.ok(data.purged_at, "there must be evidence of when it was purged");
+  assert.equal(
+    data.purge_reason,
+    "no_api_key",
+    "must distinguish 'no key configured' from 'Google confirmed it's gone'"
+  );
 });
 
 test("purgeExpiredRecords purges suppressed doctors instead of refreshing them, even with a working API key", async () => {
@@ -106,6 +112,44 @@ test("purgeExpiredRecords purges suppressed doctors instead of refreshing them, 
   assert.equal(data.nombre, undefined, "a suppressed doctor must be purged, not refreshed");
   assert.equal(data.suppressed, true, "suppressed must survive the purge");
   assert.ok(data.purged_at);
+  assert.equal(data.purge_reason, "suppressed");
+});
+
+test("purgeExpiredRecords tags not_found_in_places when the API key works but Places has nothing for that place_id", async () => {
+  const placeId = `place-notfound-${Date.now()}`;
+  await admin
+    .firestore()
+    .collection("medicos")
+    .doc(placeId)
+    .set({
+      nombre: "Dr. Gone",
+      especialidad_raw: "oftalmología",
+      direccion: "Zona 2, Guatemala",
+      telefono: "22224444",
+      sitio_web: null,
+      missing_fields: ["sitio_web"],
+      zona: "zona 2",
+      lat: 14.6,
+      lng: -90.5,
+      fecha_recoleccion: pastIso(31),
+      expires_at: pastIso(1),
+      run_id: "test-run-notfound",
+      place_id: placeId,
+      keyword_usado: "oftalmologo zona 2 Guatemala",
+      suppressed: false,
+    });
+
+  const originalFetch = global.fetch;
+  global.fetch = async () => new Response(JSON.stringify({ status: "NOT_FOUND" }));
+
+  try {
+    await purgeExpiredRecords("fake-api-key-for-test");
+  } finally {
+    global.fetch = originalFetch;
+  }
+
+  const snap = await admin.firestore().collection("medicos").doc(placeId).get();
+  assert.equal(snap.data().purge_reason, "not_found_in_places");
 });
 
 test("purgeExpiredRecords does not touch current documents (future expires_at)", async () => {

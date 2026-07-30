@@ -22,6 +22,7 @@ export interface Doctor {
 export interface CollectionRun {
   keyword: string;
   zona: string;
+  especialidad: string;
   timestamp: string;
   api_calls: number;
   results_new: number;

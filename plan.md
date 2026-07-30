@@ -60,9 +60,9 @@ medicos/{place_id}
   suppressed: boolean         # true si hubo solicitud de remoción
 
 collection_runs/{run_id}
-  keyword, zona, timestamp, operator
+  keyword, zona, especialidad, timestamp
   api_calls, results_new, results_duplicated
-  estimated_cost_usd
+  estimated_cost_usd          # Text Search ($0.032) y Place Details ($0.017) con tarifas distintas
 
 coverage_stats/{zona}_{especialidad}
   searches_run, unique_results
@@ -130,8 +130,8 @@ Un proyecto que guarda nombres, teléfonos y direcciones "para siempre porque es
 
 - Todo documento lleva `expires_at = fecha_recoleccion + 30 días`.
 - `purgeExpiredRecords` corre a diario vía Cloud Scheduler:
-  - **Refresco:** re-consulta por `place_id` (identificador persistente permitido), reemplaza el contenido y renueva `expires_at`.
-  - **Purga:** si la re-consulta falla o el presupuesto no lo permite, elimina el contenido y conserva únicamente `place_id`.
+  - **Refresco:** re-consulta por `place_id` (identificador persistente permitido), reemplaza el contenido y renueva `expires_at`. Nunca se intenta si el documento está `suppressed` — refrescar a alguien que pidió remoción deshace la remoción.
+  - **Purga:** si la re-consulta falla, Google confirma que el lugar ya no existe, o falta `PLACES_API_KEY`, se elimina el contenido y se conserva `place_id` + `purge_reason` (`suppressed | no_api_key | not_found_in_places | refresh_error`) — para distinguir "Google confirmó que cerró" de "no teníamos la key configurada", en vez de que ambos casos se vean idénticos en Firestore.
 - `obtenerDirectorio` nunca devuelve documentos vencidos, aunque sigan en la base.
 - Política TTL de Firestore configurada como red de seguridad sobre `expires_at`.
 - Se registra evidencia: log de ejecuciones de purga para mostrar en la demo.
@@ -146,8 +146,8 @@ Un proyecto que guarda nombres, teléfonos y direcciones "para siempre porque es
 
 **Método:** con los mismos datos que ya recolectamos (costo adicional de API ≈ 0), calculamos por celda zona × especialidad:
 
-- número de búsquedas ejecutadas
-- resultados únicos obtenidos
+- número de búsquedas ejecutadas — contado desde `collection_runs`, no desde `medicos`, para que una zona buscada 10 veces sin resultados se distinga de una zona nunca buscada (si se contara desde `medicos`, ambas se verían idénticas: cero registros)
+- resultados únicos obtenidos (excluye `suppressed`: una remoción no debe contar ni en el directorio público ni en las estadísticas agregadas)
 - % de registros con teléfono
 - % de registros con sitio web
 
@@ -293,7 +293,7 @@ Formato basado en el Data Cards Playbook de Google. Secciones:
 
 ## 14. Telemetría de Costo
 
-`collection_runs` permite reportar números concretos en lugar de "gastamos poco":
+`collection_runs` permite reportar números concretos en lugar de "gastamos poco". El costo estimado usa tarifas separadas por tipo de llamada — Text Search (~$0.032) y Place Details (~$0.017) tienen precios distintos en Google Places API, así que sumar todas las llamadas a una sola tarifa subestimaba el gasto real.
 
 - gasto total en USD
 - registros únicos obtenidos
