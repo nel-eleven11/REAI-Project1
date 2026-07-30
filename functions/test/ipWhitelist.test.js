@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const BASE_URL = "http://127.0.0.1:5001/demo-test/us-central1/obtenerDirectorio/directorio";
+const BASE_URL = "http://127.0.0.1:5001/demo-test/us-central1/getDirectory/directorio";
 
 test("blocks a client IP that isn't on the whitelist", async () => {
   const res = await fetch(BASE_URL, { headers: { "X-Forwarded-For": "8.8.8.8" } });

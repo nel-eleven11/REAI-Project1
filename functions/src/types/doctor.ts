@@ -1,4 +1,5 @@
-export interface Medico {
+
+export interface Doctor {
   nombre: string;
   especialidad_raw: string;
   direccion: string;
@@ -24,4 +25,26 @@ export interface CollectionRun {
   results_new: number;
   results_duplicated: number;
   estimated_cost_usd: number;
+}
+
+export interface CoverageStats {
+  zona: string;
+  especialidad: string;
+  searches_run: number;
+  unique_results: number;
+  pct_con_telefono: number;
+  pct_con_sitio_web: number;
+  computed_at: string;
+}
+
+export type CorrectionType = "correccion" | "remocion";
+export type CorrectionStatus = "pendiente" | "aplicada" | "rechazada";
+
+export interface Correction {
+  place_id: string;
+  tipo: CorrectionType;
+  mensaje: string;
+  estado: CorrectionStatus;
+  created_at: string;
+  ip: string;
 }

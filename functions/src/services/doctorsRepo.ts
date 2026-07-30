@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import type { Medico, CollectionRun } from "../types/medico";
+import type { Doctor, CollectionRun } from "../types/doctor";
 import type { PlaceWithDetails } from "./placesClient";
 
 const RETENTION_DAYS = 30;
@@ -10,7 +10,7 @@ export interface SaveResult {
   resultsDuplicated: number;
 }
 
-export async function saveMedicos(
+export async function saveDoctors(
   places: PlaceWithDetails[],
   keyword: string,
   zona: string,
@@ -40,7 +40,7 @@ export async function saveMedicos(
 
     // suppressed must survive re-collection (plan.md sección 12): never reset
     // it here, only initialize it to false the first time the doc is created.
-    const medico: Omit<Medico, "suppressed"> & { suppressed?: boolean } = {
+    const doctor: Omit<Doctor, "suppressed"> & { suppressed?: boolean } = {
       nombre: place.nombre,
       especialidad_raw: especialidadRaw,
       direccion: place.direccion,
@@ -57,10 +57,10 @@ export async function saveMedicos(
       keyword_usado: keyword,
     };
     if (!existing.exists) {
-      medico.suppressed = false;
+      doctor.suppressed = false;
     }
 
-    batch.set(docRef, medico, { merge: true });
+    batch.set(docRef, doctor, { merge: true });
   }
   await batch.commit();
 

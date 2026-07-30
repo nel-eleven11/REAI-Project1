@@ -23,7 +23,7 @@ async function waitForAccessLog(ip, { timeoutMs = 5000, intervalMs = 200 } = {})
 test("records a 403 in access_log when the whitelist blocks a request", async () => {
   const spoofedIp = `9.9.9.${Math.floor(Math.random() * 255)}`;
 
-  await fetch("http://127.0.0.1:5001/demo-test/us-central1/obtenerDirectorio/directorio", {
+  await fetch("http://127.0.0.1:5001/demo-test/us-central1/getDirectory/directorio", {
     headers: { "X-Forwarded-For": spoofedIp },
   });
 

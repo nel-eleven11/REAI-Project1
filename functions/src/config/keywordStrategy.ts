@@ -27,8 +27,8 @@ export function buildKeyword(especialidad: Especialidad, sufijo: Sufijo, zona: s
   return `${sufijo} ${especialidad} ${zona} Guatemala`;
 }
 
-// Cobertura balanceada: mismo numero de combinaciones por zona,
-// para no contaminar la auditoria de sesgo con busquedas desiguales (plan.md, seccion 7-8).
+// Balanced coverage: same number of combinations per zone, so we don't
+// contaminate the bias audit with uneven searches (plan.md, sections 7-8).
 export function buildKeywordMatrix(): KeywordCombo[] {
   const combos: KeywordCombo[] = [];
   for (const zona of ZONAS) {

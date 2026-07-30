@@ -90,3 +90,58 @@ async function fetchPlaceDetails(placeId: string, apiKey: string): Promise<Detai
 
   return detailsBody.result ?? null;
 }
+
+interface FullDetailsResult {
+  name?: string;
+  formatted_address?: string;
+  formatted_phone_number?: string;
+  website?: string;
+  geometry?: { location?: { lat: number; lng: number } };
+}
+
+interface FullDetailsResponse {
+  status: string;
+  error_message?: string;
+  result?: FullDetailsResult;
+}
+
+/**
+ * Re-queries an existing place by its place_id (a persistent identifier
+ * that the Places ToS allow retaining indefinitely — plan.md section 6).
+ * Used by purgeExpiredRecords to refresh content before purging it.
+ * Returns null if the place no longer exists or the query fails, so the
+ * caller can decide to purge instead of failing.
+ */
+
+export async function searchPlaceById(placeId: string, apiKey: string): Promise<PlaceWithDetails | null> {
+  const detailsUrl = new URL(DETAILS_URL);
+  detailsUrl.searchParams.set("place_id", placeId);
+  detailsUrl.searchParams.set(
+    "fields",
+    "place_id,name,formatted_address,formatted_phone_number,website,geometry"
+  );
+  detailsUrl.searchParams.set("key", apiKey);
+
+  try {
+    const detailsResponse = await fetch(detailsUrl);
+    const detailsBody = (await detailsResponse.json()) as FullDetailsResponse;
+
+    if (detailsBody.status !== "OK" || !detailsBody.result) {
+      return null;
+    }
+
+    const result = detailsBody.result;
+    return {
+      place_id: placeId,
+      nombre: result.name ?? "",
+      direccion: result.formatted_address ?? "",
+      lat: result.geometry?.location?.lat ?? null,
+      lng: result.geometry?.location?.lng ?? null,
+      telefono: result.formatted_phone_number ?? null,
+      sitio_web: result.website ?? null,
+    };
+  } catch (error) {
+    console.error(`searchPlaceById: fetch failed for place_id=${placeId}`, error);
+    return null;
+  }
+}
