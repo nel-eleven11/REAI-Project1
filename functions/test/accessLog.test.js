@@ -6,6 +6,20 @@ if (!admin.apps.length) {
   admin.initializeApp({ projectId: "demo-test" });
 }
 
+async function waitForAccessLog(ip, { timeoutMs = 5000, intervalMs = 200 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const snap = await admin.firestore().collection("access_log").where("ip", "==", ip).limit(1).get();
+    if (!snap.empty) {
+      return snap.docs[0].data();
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+
+  throw new Error(`access_log entry for ip=${ip} did not appear within ${timeoutMs}ms`);
+}
+
 test("records a 403 in access_log when the whitelist blocks a request", async () => {
   const spoofedIp = `9.9.9.${Math.floor(Math.random() * 255)}`;
 
@@ -13,17 +27,10 @@ test("records a 403 in access_log when the whitelist blocks a request", async ()
     headers: { "X-Forwarded-For": spoofedIp },
   });
 
-  // res.on("finish") writes fire-and-forget; give it a moment to land.
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  // res.on("finish") writes fire-and-forget; poll instead of a fixed sleep
+  // since cold starts (CI in particular) make the write latency unpredictable.
+  const entry = await waitForAccessLog(spoofedIp);
 
-  const snap = await admin
-    .firestore()
-    .collection("access_log")
-    .where("ip", "==", spoofedIp)
-    .limit(1)
-    .get();
-
-  assert.equal(snap.empty, false);
-  assert.equal(snap.docs[0].data().resultado, 403);
-  assert.equal(snap.docs[0].data().ruta, "/directorio");
+  assert.equal(entry.resultado, 403);
+  assert.equal(entry.ruta, "/directorio");
 });
