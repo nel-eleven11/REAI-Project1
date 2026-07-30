@@ -91,11 +91,9 @@ async function fetchPlaceDetails(placeId: string, apiKey: string): Promise<Detai
   return detailsBody.result ?? null;
 }
 
-interface FullDetailsResult {
+interface FullDetailsResult extends DetailsResult {
   name?: string;
   formatted_address?: string;
-  formatted_phone_number?: string;
-  website?: string;
   geometry?: { location?: { lat: number; lng: number } };
 }
 
@@ -105,14 +103,8 @@ interface FullDetailsResponse {
   result?: FullDetailsResult;
 }
 
-/**
- * Re-queries an existing place by its place_id (a persistent identifier
- * that the Places ToS allow retaining indefinitely — plan.md section 6).
- * Used by purgeExpiredRecords to refresh content before purging it.
- * Returns null if the place no longer exists or the query fails, so the
- * caller can decide to purge instead of failing.
- */
-
+// Returns null if the place no longer exists or the query fails, so the
+// caller (purgeExpiredRecords) can purge instead.
 export async function searchPlaceById(placeId: string, apiKey: string): Promise<PlaceWithDetails | null> {
   const detailsUrl = new URL(DETAILS_URL);
   detailsUrl.searchParams.set("place_id", placeId);

@@ -57,6 +57,57 @@ test("purgeExpiredRecords purges content and keeps place_id when there's no API 
   assert.ok(data.purged_at, "there must be evidence of when it was purged");
 });
 
+test("purgeExpiredRecords purges suppressed doctors instead of refreshing them, even with a working API key", async () => {
+  const placeId = `place-suppressed-purge-${Date.now()}`;
+  await admin
+    .firestore()
+    .collection("medicos")
+    .doc(placeId)
+    .set({
+      nombre: "Dr. Removed",
+      especialidad_raw: "psiquiatría",
+      direccion: "Zona 1, Guatemala",
+      telefono: "22223333",
+      sitio_web: "https://example.com",
+      missing_fields: [],
+      zona: "zona 1",
+      lat: 14.6,
+      lng: -90.5,
+      fecha_recoleccion: pastIso(31),
+      expires_at: pastIso(1),
+      run_id: "test-run-suppressed-purge",
+      place_id: placeId,
+      keyword_usado: "psiquiatra zona 1 Guatemala",
+      suppressed: true,
+    });
+
+  // Fake fetch that WOULD successfully "refresh" the place if called — this
+  // proves the suppressed check skips the refresh attempt entirely, since
+  // the doctor's content must still come out purged despite this.
+  const originalFetch = global.fetch;
+  global.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        status: "OK",
+        result: { name: "Dr. Removed (refreshed)", formatted_address: "Zona 1", formatted_phone_number: "999" },
+      })
+    );
+
+  try {
+    await purgeExpiredRecords("fake-api-key-for-test");
+  } finally {
+    global.fetch = originalFetch;
+  }
+
+  const snap = await admin.firestore().collection("medicos").doc(placeId).get();
+  const data = snap.data();
+
+  assert.equal(data.place_id, placeId);
+  assert.equal(data.nombre, undefined, "a suppressed doctor must be purged, not refreshed");
+  assert.equal(data.suppressed, true, "suppressed must survive the purge");
+  assert.ok(data.purged_at);
+});
+
 test("purgeExpiredRecords does not touch current documents (future expires_at)", async () => {
   const placeId = `place-current-${Date.now()}`;
   await admin

@@ -22,13 +22,13 @@ export async function getDirectoryHandler(req: Request, res: Response): Promise<
 
   const pageSize = Math.min(requestedPageSize, configuredMax);
 
-  const especialidad = typeof req.query.especialidad === "string" ? req.query.especialidad : undefined;
-  const zona = typeof req.query.zona === "string" ? req.query.zona : undefined;
+  const specialty = typeof req.query.especialidad === "string" ? req.query.especialidad : undefined;
+  const zone = typeof req.query.zona === "string" ? req.query.zona : undefined;
 
   try {
-    const result = await queryDirectory({ page, pageSize, especialidad, zona });
+    const result = await queryDirectory({ page, pageSize, specialty, zone });
     res.status(200).json(result);
   } catch (error) {
-    res.status(500).json({ error: "Failure to check repository", detail: (error as Error).message });
+    res.status(500).json({ error: "Failed to query directory", detail: (error as Error).message });
   }
 }

@@ -32,4 +32,8 @@ El mismo número de combinaciones (especialidad × sufijo) se ejecuta en cada zo
 
 ## Trazabilidad
 
-Cada documento en `medicos` guarda `keyword_usado` y `run_id`. Cada invocación de `recolectarMedicos` crea un documento en `collection_runs` con el keyword, la zona, resultados nuevos vs. duplicados y el costo estimado — así se puede auditar qué combinaciones ya se corrieron y evitar repetirlas.
+Cada documento en `medicos` guarda `keyword_usado` y `run_id`. Cada invocación crea un documento en `collection_runs` con el keyword, la zona, resultados nuevos vs. duplicados y el costo estimado — así se puede auditar qué combinaciones ya se corrieron y evitar repetirlas.
+
+## Cómo correr la matriz completa
+
+`GET /runCollectionBatch?batchSize=N` (mismo IP whitelist que `/recolectarMedicos`) recorre `buildKeywordMatrix()` en orden, avanzando un cursor persistido en `collection_progress/state`. Cada llamada procesa las siguientes `N` combinaciones (default 2, máx. 10) y guarda por dónde se quedó, así que cualquier integrante del equipo puede seguir donde otro dejó sin repetir búsquedas ni saltarse zonas. `recolectarMedicos` (`keyword`, `zona`, `especialidad` manuales) sigue disponible para búsquedas puntuales fuera de la matriz.

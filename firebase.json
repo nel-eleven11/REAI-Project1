@@ -12,6 +12,7 @@
   },
   "hosting": {
     "public": "public",
+    "predeploy": ["cp plan.md public/plan.md"],
     "ignore": [
       "firebase.json",
       "**/.*",

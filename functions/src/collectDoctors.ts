@@ -1,14 +1,12 @@
-import { randomUUID } from "crypto";
 import type { Request, Response } from "express";
-import { searchPlaces } from "./services/placesClient";
-import { saveDoctors, saveCollectionRun } from "./services/doctorsRepo";
+import { collectAndSave } from "./services/collectionService";
 
 export async function collectDoctorsHandler(req: Request, res: Response): Promise<void> {
   const keyword = req.query.keyword as string | undefined;
-  const zona = req.query.zona as string | undefined;
-  const especialidad = req.query.especialidad as string | undefined;
+  const zone = req.query.zona as string | undefined;
+  const specialty = req.query.especialidad as string | undefined;
 
-  if (!keyword || !zona || !especialidad) {
+  if (!keyword || !zone || !specialty) {
     res.status(400).json({ error: "keyword, zona and especialidad are required" });
     return;
   }
@@ -19,19 +17,14 @@ export async function collectDoctorsHandler(req: Request, res: Response): Promis
     return;
   }
 
-  const runId = randomUUID();
-
   try {
-    const { places, apiCalls } = await searchPlaces(keyword, apiKey);
-    const saveResult = await saveDoctors(places, keyword, zona, especialidad, runId);
-    await saveCollectionRun(runId, keyword, zona, apiCalls, saveResult);
-
+    const outcome = await collectAndSave(keyword, zone, specialty, apiKey);
     res.status(200).json({
-      run_id: runId,
-      results_total: places.length,
-      results_new: saveResult.resultsNew,
-      results_duplicated: saveResult.resultsDuplicated,
-      api_calls: apiCalls,
+      run_id: outcome.runId,
+      results_total: outcome.resultsTotal,
+      results_new: outcome.resultsNew,
+      results_duplicated: outcome.resultsDuplicated,
+      api_calls: outcome.apiCalls,
     });
   } catch (error) {
     res.status(502).json({ error: "Failed to query Places API", detail: (error as Error).message });

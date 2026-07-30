@@ -13,8 +13,8 @@ export interface SaveResult {
 export async function saveDoctors(
   places: PlaceWithDetails[],
   keyword: string,
-  zona: string,
-  especialidadRaw: string,
+  zone: string,
+  specialty: string,
   runId: string
 ): Promise<SaveResult> {
   const db = admin.firestore();
@@ -38,16 +38,15 @@ export async function saveDoctors(
     if (!place.telefono) missingFields.push("telefono");
     if (!place.sitio_web) missingFields.push("sitio_web");
 
-    // suppressed must survive re-collection (plan.md sección 12): never reset
-    // it here, only initialize it to false the first time the doc is created.
+    // suppressed survives re-collection: only set on first insert, never reset.
     const doctor: Omit<Doctor, "suppressed"> & { suppressed?: boolean } = {
       nombre: place.nombre,
-      especialidad_raw: especialidadRaw,
+      especialidad_raw: specialty,
       direccion: place.direccion,
       telefono: place.telefono,
       sitio_web: place.sitio_web,
       missing_fields: missingFields,
-      zona,
+      zona: zone,
       lat: place.lat,
       lng: place.lng,
       fecha_recoleccion: now.toISOString(),
@@ -70,14 +69,14 @@ export async function saveDoctors(
 export async function saveCollectionRun(
   runId: string,
   keyword: string,
-  zona: string,
+  zone: string,
   apiCalls: number,
   saveResult: SaveResult
 ): Promise<void> {
   const db = admin.firestore();
   const run: CollectionRun = {
     keyword,
-    zona,
+    zona: zone,
     timestamp: new Date().toISOString(),
     api_calls: apiCalls,
     results_new: saveResult.resultsNew,

@@ -11,16 +11,8 @@ export interface PurgeSummary {
   errors: number;
 }
 
-/**
- * Google Maps Platform ToS compliance (plan.md section 6): Places content
- * (name, phone, address, etc.) can only be cached for up to 30 days.
- * `place_id` may be retained indefinitely.
- *
- * For each expired document:
- *  - try to refresh by re-querying by place_id and renewing expires_at
- *  - if the refresh fails (no API key, the Places API fails, or the place
- *    no longer exists) purge the content and keep only the place_id.
- */
+// Places content max 30 days (plan.md section 6). Suppressed doctors are
+// purged directly, never refreshed, or removal would be undone.
 export async function purgeExpiredRecords(apiKey: string | undefined): Promise<PurgeSummary> {
   const db = admin.firestore();
   const nowIso = new Date().toISOString();
@@ -32,9 +24,19 @@ export async function purgeExpiredRecords(apiKey: string | undefined): Promise<P
   for (const doc of expiredSnap.docs) {
     const doctor = doc.data() as Doctor;
 
+    if (doctor.suppressed) {
+      try {
+        await purgeDocContent(doc.ref, doctor.place_id);
+        summary.purged += 1;
+      } catch (error) {
+        console.error(`purgeExpiredRecords: failed purging suppressed place_id=${doctor.place_id}`, error);
+        summary.errors += 1;
+      }
+      continue;
+    }
+
     try {
       const refreshed = apiKey ? await searchPlaceById(doctor.place_id, apiKey) : null;
-
 
       if (refreshed) {
         const expiresAt = new Date(Date.now() + RETENTION_DAYS * 24 * 60 * 60 * 1000);
@@ -60,8 +62,6 @@ export async function purgeExpiredRecords(apiKey: string | undefined): Promise<P
       }
     } catch (error) {
       console.error(`purgeExpiredRecords: failed processing place_id=${doctor.place_id}`, error);
-      // On any failure (network, quota, etc.) purge conservatively rather
-      // than leaving expired-but-full-content data past the ToS window.
       try {
         await purgeDocContent(doc.ref, doctor.place_id);
         summary.purged += 1;
@@ -76,8 +76,6 @@ export async function purgeExpiredRecords(apiKey: string | undefined): Promise<P
 }
 
 async function purgeDocContent(ref: FirebaseFirestore.DocumentReference, placeId: string): Promise<void> {
-  // Only place_id survives indefinitely (ToS). Everything else is cleared.
-
   await ref.set(
     {
       place_id: placeId,

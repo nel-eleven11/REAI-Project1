@@ -4,17 +4,14 @@ import express from "express";
 import { ipWhitelist } from "./middleware/ipWhitelist";
 import { appCheckGuard } from "./middleware/appCheck";
 import { collectDoctorsHandler } from "./collectDoctors";
+import { runCollectionBatchHandler } from "./runCollectionBatch";
 import { getDirectoryHandler } from "./getDirectory";
 import { getCoverageHandler } from "./getCoverage";
 import { submitCorrectionHandler } from "./submitCorrection";
 
 admin.initializeApp();
 
-// Defense in depth (plan.md section 11): App Check is a second, independent
-// signal on top of the IP whitelist. Off by default (APP_CHECK_ENFORCE
-// unset) so the emulator/CI tests, which don't send a token, keep passing.
-// Flip to "true" per-environment once a real reCAPTCHA site key is wired up
-// in the UI (see README "App Check setup").
+// Off by default so emulator/CI requests (no token) still pass; see README.
 const appCheckEnforce = process.env.APP_CHECK_ENFORCE === "true";
 
 export const helloWorld = onRequest((req, res) => {
@@ -38,15 +35,14 @@ export const getCoverage = onRequest(coverageApp);
 const collectApp = express();
 collectApp.use(ipWhitelist(process.env.IP_WHITELIST));
 collectApp.get("/recolectarMedicos", collectDoctorsHandler);
+collectApp.get("/runCollectionBatch", runCollectionBatchHandler);
 
 export const collectDoctors = onRequest(collectApp);
 
 const correctionsApp = express();
 correctionsApp.use(express.json());
 correctionsApp.use(appCheckGuard(appCheckEnforce));
-// No IP whitelist: /correcciones must be reachable by anyone whose data
-// appears in the directory (plan.md section 12), protected instead by the
-// Firestore-backed rate limiter (services/rateLimiter.ts).
+// No IP whitelist: must be reachable by anyone (plan.md section 12); rate-limited instead.
 correctionsApp.post("/correcciones", submitCorrectionHandler);
 
 export const submitCorrection = onRequest(correctionsApp);

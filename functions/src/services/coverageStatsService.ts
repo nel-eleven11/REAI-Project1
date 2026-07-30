@@ -1,18 +1,8 @@
 import * as admin from "firebase-admin";
 import type { CoverageStats, Doctor } from "../types/doctor";
 
-/**
- * Coverage and bias audit (plan.md section 7): for each zona x especialidad
- * cell, measures how many unique records exist and what percentage has a
- * phone/website. It does not measure "how many doctors there are", it
- * measures how well the source (Google Places) performs per cell — the
- * digital divide shows up in cells with few results and low contact %.
- *
- * "searches_run" is approximated by counting unique run_ids that touched
- * that zona+especialidad, since recording it directly would require
- * changing collection_runs to store especialidad (out of scope for this
- * iteration); this approximation is documented explicitly.
- */
+// Measures how well Places performs per zona x especialidad cell, not how
+// many doctors actually exist there (plan.md section 7).
 export async function computeCoverageStats(): Promise<CoverageStats[]> {
   const db = admin.firestore();
   const snapshot = await db.collection("medicos").get();
@@ -28,7 +18,6 @@ export async function computeCoverageStats(): Promise<CoverageStats[]> {
 
   for (const doc of snapshot.docs) {
     const doctor = doc.data() as Doctor;
-    // place_id-only purged docs no longer have zona/especialidad_raw — skip.
     if (!doctor.zona || !doctor.especialidad_raw) continue;
 
     const key = `${doctor.zona}_${doctor.especialidad_raw}`;
@@ -49,12 +38,12 @@ export async function computeCoverageStats(): Promise<CoverageStats[]> {
 
   for (const [key, bucket] of buckets.entries()) {
     const separatorIndex = key.indexOf("_");
-    const zona = key.slice(0, separatorIndex);
-    const especialidad = key.slice(separatorIndex + 1);
+    const zone = key.slice(0, separatorIndex);
+    const specialty = key.slice(separatorIndex + 1);
 
     const stat: CoverageStats = {
-      zona,
-      especialidad,
+      zona: zone,
+      especialidad: specialty,
       searches_run: bucket.runIds.size,
       unique_results: bucket.uniqueResults,
       pct_con_telefono: Number(((bucket.withPhone / bucket.uniqueResults) * 100).toFixed(2)),
@@ -70,11 +59,7 @@ export async function computeCoverageStats(): Promise<CoverageStats[]> {
   return stats;
 }
 
-/**
- * Reads the precomputed coverage_stats collection for the /coverage
- * endpoint. Does not recompute anything — that's computeCoverageStats'
- * job, run daily by the scheduler (plan.md section 3).
- */
+// Reads the precomputed collection; computeCoverageStats does the recompute.
 export async function readCoverageStats(): Promise<CoverageStats[]> {
   const db = admin.firestore();
   const snapshot = await db.collection("coverage_stats").get();

@@ -28,16 +28,16 @@ Tres afirmaciones que sostenemos con código y números, no con párrafos:
 ## 3. Arquitectura General
 
 ```
-[UI Firebase Hosting] --> [GET /directorio] --> [IP Whitelist + Rate Limit] --> [Firestore]
-        |                                                |
-        |                                           403 + access_log
+[UI Firebase Hosting] --> [getDirectory: GET /directorio] --> [IP Whitelist + Rate Limit] --> [Firestore]
+        |                                                              |
+        |                                                       403 + access_log
         |
-        +--> [POST /correcciones] --> [cola de revisión / blocklist]
+        +--> [submitCorrection: POST /correcciones] --> [cola de revisión / blocklist]
 
-[recolectarMedicos] --(keyword, zona)--> [Google Places API] --> [medicos + collection_runs]
+[collectDoctors] --(keyword, zona)--> [Google Places API] --> [medicos + collection_runs]
 
-[Scheduler diario] --> [purgeExpiredRecords]   (cumplimiento ToS 30 días)
-[Scheduler diario] --> [computeCoverageStats]  (auditoría de cobertura/sesgo)
+[Scheduler diario] --> [purgeExpiredRecordsScheduled]   (cumplimiento ToS 30 días)
+[Scheduler diario] --> [computeCoverageStatsScheduled]  (auditoría de cobertura/sesgo)
 ```
 
 ### Colecciones Firestore
@@ -75,17 +75,25 @@ correcciones/{id}
 
 access_log/{id}
   ip, ruta, resultado (200 | 403 | 429), timestamp
+
+rate_limits/{ip}
+  count, window_start                    # ventana fija de 60s, usado solo por /correcciones
+
+collection_progress/state
+  next_index, updated_at                 # cursor compartido sobre buildKeywordMatrix()
 ```
 
 ### Cloud Functions
 
 | Función | Tipo | Responsabilidad |
 |---|---|---|
-| `recolectarMedicos` | HTTP manual | keyword + zona → Places API → Firestore. Límite 20 resultados/invocación. Registra `collection_runs`. |
-| `obtenerDirectorio` | HTTP GET `/directorio` | Paginado, filtros `especialidad` y `zona`. IP whitelist + rate limit. Excluye `suppressed` y expirados. |
-| `submitCorreccion` | HTTP POST `/correcciones` | Recibe solicitudes de corrección o remoción. |
-| `purgeExpiredRecords` | Scheduled (diaria) | Purga o refresca documentos con `expires_at` vencido. Cumplimiento ToS. |
-| `computeCoverageStats` | Scheduled (diaria) | Precalcula la matriz zona × especialidad para la auditoría de sesgo. |
+| `collectDoctors` | HTTP manual `/recolectarMedicos` | keyword + zona → Places API → Firestore. Límite 20 resultados/invocación. Registra `collection_runs`. |
+| `collectDoctors` (mismo deploy) | HTTP `/runCollectionBatch` | Recorre `buildKeywordMatrix()` con cursor persistido en `collection_progress`, en lotes de tamaño configurable. |
+| `getDirectory` | HTTP GET `/directorio` | Paginado, filtros `especialidad` y `zona`. IP whitelist + App Check. Excluye `suppressed` y expirados. |
+| `getCoverage` | HTTP GET `/coverage` | Expone `coverage_stats` precalculado para el heatmap. IP whitelist + App Check. |
+| `submitCorrection` | HTTP POST `/correcciones` | Recibe solicitudes de corrección o remoción. Sin IP whitelist (debe ser público); rate limit en Firestore; access_log propio. |
+| `purgeExpiredRecordsScheduled` | Scheduled (diaria) | Purga o refresca documentos con `expires_at` vencido. Nunca refresca `suppressed` — los purga directo. Cumplimiento ToS. |
+| `computeCoverageStatsScheduled` | Scheduled (diaria) | Precalcula la matriz zona × especialidad para la auditoría de sesgo. |
 
 ---
 
@@ -213,7 +221,7 @@ Google Places devuelve texto libre: `"Dr. Juan Pérez - Cardiología y Medicina 
 - [x] UI: buscador, tabla, badge de antigüedad del dato, aviso de "no validación médica"
 - [x] Heatmap de cobertura en la UI
 - [x] Rate limit por IP + App Check en la UI
-- [x] Pruebas end-to-end contra emulador y luego producción
+- [x] Pruebas end-to-end contra emulador — [ ] falta el checklist manual contra producción (ver README)
 
 
 ### Semana 4 — Documentación y Cierre (25% + 15%)

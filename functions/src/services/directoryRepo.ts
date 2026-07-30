@@ -4,8 +4,8 @@ import type { Doctor } from "../types/doctor";
 export interface DirectoryQuery {
   page: number;
   pageSize: number;
-  especialidad?: string;
-  zona?: string;
+  specialty?: string;
+  zone?: string;
 }
 
 export interface DirectoryResult {
@@ -15,24 +15,17 @@ export interface DirectoryResult {
   hasMore: boolean;
 }
 
-/**
- * Firestore does not support OFFSET-based pagination efficiently, and it
- * cannot combine an inequality filter on `expires_at` with equality filters
- * on `especialidad_raw`/`zona` without a composite index per combination.
- * We keep the query simple (equality filters only, ordered by fecha_recoleccion)
- * and filter `expires_at`/`suppressed` in-memory. This is fine at the dataset
- * sizes this project targets (hundreds to low thousands of doctors) and keeps
- * the index surface small — see firestore.indexes.json.
- */
+// expires_at/suppressed are filtered in-memory, not in the Firestore query,
+// to avoid a composite index per filter combination — fine at this dataset size.
 export async function queryDirectory(query: DirectoryQuery): Promise<DirectoryResult> {
   const db = admin.firestore();
   let ref: FirebaseFirestore.Query = db.collection("medicos");
 
-  if (query.especialidad) {
-    ref = ref.where("especialidad_raw", "==", query.especialidad);
+  if (query.specialty) {
+    ref = ref.where("especialidad_raw", "==", query.specialty);
   }
-  if (query.zona) {
-    ref = ref.where("zona", "==", query.zona);
+  if (query.zone) {
+    ref = ref.where("zona", "==", query.zone);
   }
   ref = ref.orderBy("fecha_recoleccion", "desc");
 

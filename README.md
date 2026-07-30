@@ -31,6 +31,15 @@ Cada miembro del equipo usa **su propia cuenta de Google Cloud y su propio proye
 
 `.env` y `.firebaserc` están en `.gitignore` — son config local de cada máquina/cuenta, nunca se commitean.
 
+## Recolección de datos
+
+Estrategia de keywords documentada en [docs/keyword-strategy.md](docs/keyword-strategy.md). Dos formas de recolectar:
+
+- `GET /recolectarMedicos?keyword=&zona=&especialidad=` — una búsqueda puntual manual.
+- `GET /runCollectionBatch?batchSize=N` — recorre la matriz balanceada completa (576 combinaciones) en lotes, con un cursor compartido en `collection_progress/state` para que cualquier integrante siga donde otro dejó, sin repetir búsquedas.
+
+Ambas comparten IP whitelist y consumen la cuota diaria de Places API.
+
 ## UI (Semana 3)
 
 La UI vive en `public/` como HTML/CSS/JS plano (sin framework ni build step) y se sirve con Firebase
@@ -105,7 +114,9 @@ flujo e2e completo contra producción es un checklist manual antes de la demo, n
 - [ ] Abrir la UI en la URL de Hosting y verificar que el buscador, la tabla y el heatmap cargan.
 - [ ] Enviar una remoción de prueba desde la UI y confirmar que el registro desaparece del
       buscador en la siguiente búsqueda.
-- [ ] Revisar `access_log` en Firestore y confirmar que quedaron registradas entradas 200 y 403.
+- [ ] Revisar `access_log` en Firestore y confirmar que quedaron registradas entradas de
+      `/directorio` (200/403) y de `/correcciones` (201/400/404/429).
 - [ ] Confirmar que `purgeExpiredRecordsScheduled` y `computeCoverageStatsScheduled` aparecen
       programadas en Cloud Scheduler.
+- [ ] Abrir `/plan.md` desde la UI desplegada (heatmap y footer) y confirmar que carga, no 404.
 

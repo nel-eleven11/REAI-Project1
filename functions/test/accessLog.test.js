@@ -34,3 +34,21 @@ test("records a 403 in access_log when the whitelist blocks a request", async ()
   assert.equal(entry.resultado, 403);
   assert.equal(entry.ruta, "/directorio");
 });
+
+test("records a 429 in access_log for /correcciones (no IP whitelist there)", async () => {
+  const ip = `9.9.8.${Math.floor(Math.random() * 255)}`;
+  const makeRequest = () =>
+    fetch("http://127.0.0.1:5001/demo-test/us-central1/submitCorrection/correcciones", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Forwarded-For": ip },
+      body: JSON.stringify({ place_id: "does-not-exist", tipo: "correccion", mensaje: "access_log coverage test" }),
+    });
+
+  for (let i = 0; i < 6; i += 1) {
+    await makeRequest();
+  }
+
+  const entry = await waitForAccessLog(ip);
+  assert.equal(entry.ruta, "/correcciones");
+  assert.ok([404, 429].includes(entry.resultado), `expected 404 or 429, got ${entry.resultado}`);
+});

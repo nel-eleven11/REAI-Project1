@@ -1,9 +1,7 @@
-
-
 const config = window.APP_CONFIG || {};
 const API_BASE = config.apiBaseUrl || "";
 
-const ESPECIALIDADES = [
+const SPECIALTIES = [
   "cardiología",
   "pediatría",
   "dermatología",
@@ -13,7 +11,7 @@ const ESPECIALIDADES = [
   "traumatología",
   "psiquiatría",
 ];
-const ZONAS = Array.from({ length: 18 }, (_, i) => `zona ${i + 1}`);
+const ZONES = Array.from({ length: 18 }, (_, i) => `zona ${i + 1}`);
 
 let currentPage = 1;
 let currentPageSize = 20;
@@ -53,33 +51,26 @@ function apiFetch(path, options = {}) {
   return fetch(`${API_BASE}${path}`, { ...options, headers });
 }
 
-// ---------------------------------------------------------------------
-// Filters setup
-// ---------------------------------------------------------------------
 function populateFilters() {
-  const especialidadSelect = document.getElementById("filter-especialidad");
-  for (const especialidad of ESPECIALIDADES) {
+  const specialtySelect = document.getElementById("filter-especialidad");
+  for (const specialty of SPECIALTIES) {
     const option = document.createElement("option");
-    option.value = especialidad;
-    option.textContent = especialidad;
-    especialidadSelect.appendChild(option);
+    option.value = specialty;
+    option.textContent = specialty;
+    specialtySelect.appendChild(option);
   }
 
-  const zonaSelect = document.getElementById("filter-zona");
-  for (const zona of ZONAS) {
+  const zoneSelect = document.getElementById("filter-zona");
+  for (const zone of ZONES) {
     const option = document.createElement("option");
-    option.value = zona;
-    option.textContent = zona;
-    zonaSelect.appendChild(option);
+    option.value = zone;
+    option.textContent = zone;
+    zoneSelect.appendChild(option);
   }
 }
 
-// ---------------------------------------------------------------------
-// Data age badge — plan.md section 13 "Frescura": fecha_recoleccion must
-// be visible with its age in days on every record shown.
-// ---------------------------------------------------------------------
-function ageBadge(fechaRecoleccionIso) {
-  const days = Math.floor((Date.now() - new Date(fechaRecoleccionIso).getTime()) / (24 * 60 * 60 * 1000));
+function ageBadge(collectedAtIso) {
+  const days = Math.floor((Date.now() - new Date(collectedAtIso).getTime()) / (24 * 60 * 60 * 1000));
   let cls = "age-fresh";
   if (days > 20) cls = "age-stale";
   else if (days > 7) cls = "age-aging";
@@ -87,7 +78,7 @@ function ageBadge(fechaRecoleccionIso) {
   const span = document.createElement("span");
   span.className = `age-badge ${cls}`;
   span.textContent = `${days} día${days === 1 ? "" : "s"}`;
-  span.title = `Recolectado el ${new Date(fechaRecoleccionIso).toLocaleDateString()}`;
+  span.title = `Recolectado el ${new Date(collectedAtIso).toLocaleDateString()}`;
   return span;
 }
 
@@ -101,12 +92,9 @@ function fieldOrMissing(value) {
   return document.createTextNode(value);
 }
 
-// ---------------------------------------------------------------------
-// Directory search + table rendering
-// ---------------------------------------------------------------------
 async function search(page = 1) {
-  const especialidad = document.getElementById("filter-especialidad").value;
-  const zona = document.getElementById("filter-zona").value;
+  const specialty = document.getElementById("filter-especialidad").value;
+  const zone = document.getElementById("filter-zona").value;
   const pageSize = document.getElementById("filter-pagesize").value;
   const statusEl = document.getElementById("search-status");
   const button = document.getElementById("search-button");
@@ -115,12 +103,10 @@ async function search(page = 1) {
   currentPageSize = Number(pageSize);
 
   const params = new URLSearchParams({ page: String(page), pageSize });
-  if (especialidad) params.set("especialidad", especialidad);
-  if (zona) params.set("zona", zona);
+  if (specialty) params.set("especialidad", specialty);
+  if (zone) params.set("zona", zone);
 
-  // Client-side throttle: purely UX (avoid double-submits), NOT a security
-  // control. Real rate limiting is enforced server-side (rateLimiter.ts /
-  // IP whitelist) — see plan.md section 11.
+  // Cosmetic only, not a security control — real rate limiting is server-side.
   button.disabled = true;
   statusEl.textContent = "Buscando...";
   statusEl.classList.remove("error");
@@ -159,34 +145,34 @@ function renderResults(results) {
   for (const doctor of results) {
     const row = document.createElement("tr");
 
-    const nombreCell = document.createElement("td");
-    nombreCell.textContent = doctor.nombre || "(sin nombre)";
-    row.appendChild(nombreCell);
+    const nameCell = document.createElement("td");
+    nameCell.textContent = doctor.nombre || "(sin nombre)";
+    row.appendChild(nameCell);
 
-    const especialidadCell = document.createElement("td");
-    especialidadCell.textContent = doctor.especialidad_raw || "";
-    row.appendChild(especialidadCell);
+    const specialtyCell = document.createElement("td");
+    specialtyCell.textContent = doctor.especialidad_raw || "";
+    row.appendChild(specialtyCell);
 
-    const direccionCell = document.createElement("td");
-    direccionCell.appendChild(fieldOrMissing(doctor.direccion));
-    row.appendChild(direccionCell);
+    const addressCell = document.createElement("td");
+    addressCell.appendChild(fieldOrMissing(doctor.direccion));
+    row.appendChild(addressCell);
 
-    const telefonoCell = document.createElement("td");
-    telefonoCell.appendChild(fieldOrMissing(doctor.telefono));
-    row.appendChild(telefonoCell);
+    const phoneCell = document.createElement("td");
+    phoneCell.appendChild(fieldOrMissing(doctor.telefono));
+    row.appendChild(phoneCell);
 
-    const sitioCell = document.createElement("td");
+    const websiteCell = document.createElement("td");
     if (doctor.sitio_web) {
       const link = document.createElement("a");
       link.href = doctor.sitio_web;
       link.textContent = "Visitar";
       link.target = "_blank";
       link.rel = "noopener noreferrer";
-      sitioCell.appendChild(link);
+      websiteCell.appendChild(link);
     } else {
-      sitioCell.appendChild(fieldOrMissing(null));
+      websiteCell.appendChild(fieldOrMissing(null));
     }
-    row.appendChild(sitioCell);
+    row.appendChild(websiteCell);
 
     const ageCell = document.createElement("td");
     ageCell.appendChild(ageBadge(doctor.fecha_recoleccion));
@@ -215,11 +201,7 @@ function prefillCorrectionForm(placeId) {
   document.getElementById("corrections-panel").scrollIntoView({ behavior: "smooth" });
 }
 
-// ---------------------------------------------------------------------
-// Coverage heatmap (plan.md section 7)
-// ---------------------------------------------------------------------
 function pctToColor(pct) {
-  // Simple 5-step scale matching the legend in index.html.
   if (pct >= 87.5) return "#14468f";
   if (pct >= 62.5) return "#2f7fd6";
   if (pct >= 37.5) return "#7fbcf5";
@@ -255,21 +237,21 @@ function renderHeatmap(stats) {
 
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
-  headRow.innerHTML = "<th>Zona \\ Especialidad</th>" + ESPECIALIDADES.map((e) => `<th>${e}</th>`).join("");
+  headRow.innerHTML = "<th>Zona \\ Especialidad</th>" + SPECIALTIES.map((s) => `<th>${s}</th>`).join("");
   thead.appendChild(headRow);
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
-  for (const zona of ZONAS) {
+  for (const zone of ZONES) {
     const row = document.createElement("tr");
     const rowLabel = document.createElement("td");
     rowLabel.className = "heatmap-row-label";
-    rowLabel.textContent = zona;
+    rowLabel.textContent = zone;
     row.appendChild(rowLabel);
 
-    for (const especialidad of ESPECIALIDADES) {
+    for (const specialty of SPECIALTIES) {
       const cell = document.createElement("td");
-      const stat = byKey.get(`${zona}__${especialidad}`);
+      const stat = byKey.get(`${zone}__${specialty}`);
       if (!stat) {
         cell.className = "heatmap-empty";
         cell.textContent = "—";
@@ -288,17 +270,14 @@ function renderHeatmap(stats) {
   container.appendChild(table);
 }
 
-// ---------------------------------------------------------------------
-// Corrections form (plan.md section 12)
-// ---------------------------------------------------------------------
 async function submitCorrection(event) {
   event.preventDefault();
   const statusEl = document.getElementById("correction-status");
   const button = document.getElementById("correction-submit");
 
   const placeId = document.getElementById("correction-place-id").value.trim();
-  const tipo = document.getElementById("correction-tipo").value;
-  const mensaje = document.getElementById("correction-mensaje").value.trim();
+  const correctionType = document.getElementById("correction-tipo").value;
+  const message = document.getElementById("correction-mensaje").value.trim();
 
   button.disabled = true;
   statusEl.classList.remove("error");
@@ -308,7 +287,7 @@ async function submitCorrection(event) {
     const res = await apiFetch("/correcciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ place_id: placeId, tipo, mensaje }),
+      body: JSON.stringify({ place_id: placeId, tipo: correctionType, mensaje: message }),
     });
     const body = await res.json();
 
@@ -331,9 +310,6 @@ async function submitCorrection(event) {
   }
 }
 
-// ---------------------------------------------------------------------
-// Wiring
-// ---------------------------------------------------------------------
 function init() {
   populateFilters();
 
