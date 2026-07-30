@@ -189,7 +189,7 @@ Google Places no tiene un campo de especialidad médica; lo único disponible es
 ## 10. Cronograma por Semana
 
 ### Semana 1 — Infraestructura y Seguridad (20%)
-- [ ] Proyecto Firebase/GCP configurado (todos los integrantes) — Diego listo, faltan 3 compañeros
+- [x] Proyecto Firebase/GCP configurado (todos los integrantes)
 - [x] Billing alerts activas + screenshot
 - [x] Cuota diaria de llamadas API configurada
 - [x] Función `hello world` desplegada (Functions v2)
@@ -210,8 +210,8 @@ Google Places no tiene un campo de especialidad médica; lo único disponible es
 ### Semana 3 — API, Cumplimiento y UI (20%)
 - [x] Endpoint `GET /directorio` con paginación (`page`, `pageSize` máx. 50)
 - [x] Filtros por `especialidad` y `zona`; excluye expirados y `suppressed`
-- [x] `purgeExpiredRecords` desplegada y ejecutándose a diario
-- [x] `computeCoverageStats` desplegada
+- [x] `purgeExpiredRecords` implementada y probada contra emulador — [ ] falta desplegar a producción
+- [x] `computeCoverageStats` implementada y probada contra emulador — [ ] falta desplegar a producción
 - [x] `POST /correcciones` operativo
 - [x] UI: buscador, tabla, badge de antigüedad del dato, aviso de "no validación médica"
 - [x] Heatmap de cobertura en la UI
