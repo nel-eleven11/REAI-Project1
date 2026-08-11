@@ -1,6 +1,10 @@
 
 export interface Doctor {
   nombre: string;
+  // What the place actually looks like: the normalized specialty when the name
+  // reveals one, otherwise the specialty we searched for. This is the field
+  // /directorio filters on — especialidad_raw stays for traceability.
+  especialidad: string;
   especialidad_raw: string;
   especialidad_normalizada: string | null;
   confidence: number | null;

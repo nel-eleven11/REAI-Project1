@@ -27,7 +27,10 @@ test("purgeExpiredRecords purges content and keeps place_id when there's no API 
     .doc(placeId)
     .set({
       nombre: "Dr. Expired",
+      especialidad: "dermatología",
       especialidad_raw: "dermatología",
+      especialidad_normalizada: "dermatología",
+      confidence: 0.9,
       direccion: "Zona 9, Guatemala",
       telefono: "22221111",
       sitio_web: "https://example.com",
@@ -55,6 +58,10 @@ test("purgeExpiredRecords purges content and keeps place_id when there's no API 
   assert.equal(data.nombre, undefined, "Places content must be purged after 30 days");
   assert.equal(data.telefono, undefined);
   assert.equal(data.direccion, undefined);
+  assert.equal(data.especialidad, undefined, "the effective specialty derives from the name");
+  assert.equal(data.especialidad_raw, undefined);
+  assert.equal(data.especialidad_normalizada, undefined, "normalized specialty derives from the name");
+  assert.equal(data.confidence, undefined, "confidence describes a name that no longer exists");
   assert.ok(data.purged_at, "there must be evidence of when it was purged");
   assert.equal(
     data.purge_reason,

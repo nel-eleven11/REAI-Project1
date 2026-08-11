@@ -33,7 +33,9 @@ test("e2e: a record is visible, then a removal request makes it disappear from /
     .doc(placeId)
     .set({
       nombre: "Dr. E2E Test",
+      especialidad,
       especialidad_raw: especialidad,
+      especialidad_normalizada: especialidad,
       direccion: "Zona 11, Guatemala",
       telefono: "22225678",
       sitio_web: null,

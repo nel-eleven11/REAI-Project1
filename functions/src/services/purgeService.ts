@@ -109,7 +109,12 @@ async function purgeDocContent(
     {
       place_id: placeId,
       nombre: admin.firestore.FieldValue.delete(),
+      // All three derive from the business name, so they are Places content
+      // too and cannot outlive the 30-day window (plan.md section 6).
+      especialidad: admin.firestore.FieldValue.delete(),
       especialidad_raw: admin.firestore.FieldValue.delete(),
+      especialidad_normalizada: admin.firestore.FieldValue.delete(),
+      confidence: admin.firestore.FieldValue.delete(),
       direccion: admin.firestore.FieldValue.delete(),
       telefono: admin.firestore.FieldValue.delete(),
       sitio_web: admin.firestore.FieldValue.delete(),

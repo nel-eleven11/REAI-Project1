@@ -16,7 +16,9 @@ function futureIso(daysFromNow) {
 async function seedDoctor(placeId, overrides = {}) {
   const base = {
     nombre: `Dr. Test ${placeId}`,
+    especialidad: "cardiología",
     especialidad_raw: "cardiología",
+    especialidad_normalizada: "cardiología",
     direccion: "Zona 10, Guatemala",
     telefono: "22334455",
     sitio_web: "https://example.com",
@@ -69,4 +71,26 @@ test("filters by especialidad and zona, excludes suppressed and expired", async 
   assert.ok(!ids.includes(idSuppressed), "a suppressed record must not appear");
   assert.ok(!ids.includes(idExpired), "a record with expired expires_at must not appear");
   assert.ok(!ids.includes(idOtherZone), "a record from another zone must not appear");
+});
+
+test("filters by the effective especialidad, not by the searched one", async () => {
+  const placeId = `place-mismatch-${Date.now()}`;
+  await seedDoctor(placeId, {
+    nombre: "Clínica Pediátrica San Juan",
+    especialidad: "pediatría",
+    especialidad_raw: "cardiología",
+    especialidad_normalizada: "pediatría",
+  });
+
+  const asPediatrics = await fetch(`${BASE_URL}?especialidad=pediatría&zona=zona 10&pageSize=50`, {
+    headers: WHITELISTED_HEADERS,
+  });
+  const pediatricsIds = (await asPediatrics.json()).results.map((m) => m.place_id);
+  assert.ok(pediatricsIds.includes(placeId), "must appear under the specialty its name reveals");
+
+  const asCardiology = await fetch(`${BASE_URL}?especialidad=cardiología&zona=zona 10&pageSize=50`, {
+    headers: WHITELISTED_HEADERS,
+  });
+  const cardiologyIds = (await asCardiology.json()).results.map((m) => m.place_id);
+  assert.ok(!cardiologyIds.includes(placeId), "must not appear under the keyword's specialty");
 });

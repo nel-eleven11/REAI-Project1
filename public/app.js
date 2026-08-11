@@ -150,7 +150,8 @@ function renderResults(results) {
     row.appendChild(nameCell);
 
     const specialtyCell = document.createElement("td");
-    specialtyCell.textContent = doctor.especialidad_raw || "";
+    // The fallback keeps records written before especialidad existed readable.
+    specialtyCell.textContent = doctor.especialidad || doctor.especialidad_raw || "";
     row.appendChild(specialtyCell);
 
     const addressCell = document.createElement("td");

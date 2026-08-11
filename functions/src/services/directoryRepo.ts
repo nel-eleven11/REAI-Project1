@@ -29,7 +29,7 @@ export async function queryDirectory(query: DirectoryQuery): Promise<DirectoryRe
   let ref: FirebaseFirestore.Query = db.collection("medicos");
 
   if (query.specialty) {
-    ref = ref.where("especialidad_raw", "==", query.specialty);
+    ref = ref.where("especialidad", "==", query.specialty);
   }
   if (query.zone) {
     ref = ref.where("zona", "==", query.zone);

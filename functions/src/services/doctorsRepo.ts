@@ -40,6 +40,7 @@ export async function saveDoctors(
       // suppressed survives re-collection: only set on first insert, never reset.
       const doctor: Omit<Doctor, "suppressed"> & { suppressed?: boolean } = {
         nombre: place.nombre,
+        especialidad: normalization.especialidad_normalizada ?? specialty,
         especialidad_raw: specialty,
         especialidad_normalizada: normalization.especialidad_normalizada,
         confidence: normalization.confidence,
