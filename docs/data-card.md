@@ -66,7 +66,7 @@ Este dataset fue construido para un directorio de referencia de médicos especia
 
 ## 4. Preprocesamiento y normalización
 
-**Decisión de diseño (ver `plan.md` sección 9):** normalización por reglas determinísticas, sin modelo de lenguaje. Google Places no expone un campo de especialidad médica ni de zona administrativa — ambos se derivan del único texto libre disponible (`nombre` del negocio y `direccion`), usando coincidencia de raíces de palabra (para especialidad) y expresiones regulares (para zona).
+**Decisión de diseño:** normalización por reglas determinísticas, sin modelo de lenguaje. Google Places no expone un campo de especialidad médica ni de zona administrativa — ambos se derivan del único texto libre disponible (`nombre` del negocio y `direccion`), usando coincidencia de raíces de palabra (para especialidad) y expresiones regulares (para zona).
 
 Cuando no hay coincidencia, el campo derivado queda en `null` — nunca se asume ni se inventa. El campo "buscado" (`especialidad_raw`, `zona_raw`) siempre se conserva para trazabilidad, incluso cuando el derivado lo reemplaza como valor efectivo.
 
@@ -92,4 +92,4 @@ Se descartó normalización asistida por LLM por costo, tiempo de etiquetado de 
 
 ---
 
-*Documento generado a partir de datos en producción del proyecto. Ver `plan.md` para el modelo de amenazas, la arquitectura completa y la postura ética extendida.*
+*Documento generado a partir de datos en producción del proyecto.*
