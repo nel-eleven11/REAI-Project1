@@ -2,127 +2,177 @@
 
 20 minutos. No demuestres un CRUD — demuestra el argumento: **construimos un directorio, pero el proyecto real es la auditoría de la fuente de datos que lo alimenta.**
 
-URL de la demo: `https://rai-proyecto1-502801.web.app`
+**URL de la demo:** `https://rai-proyecto1-502801.web.app`
+**Datos reales al momento de escribir esto** (actualiza si vuelves a correr recolección antes de presentar): 768 médicos activos, 122/144 celdas del heatmap con al menos un resultado, \$104.19 USD gastados de los \$200 de crédito, 349 corridas de recolección, 5,821 llamadas a la API.
 
 ---
 
 ## 0. Apertura (1 min)
 
-> "El Ministerio de Educación pidió un directorio de médicos especialistas: recolectar, guardar, exponer. Eso lo cumplimos. Pero en el camino descubrimos tres cosas que un directorio 'que solo funciona' no te dice: que la fuente de datos está sesgada, que hay una cláusula de retención de Google que casi todos ignoran, y que la seguridad que nos pidieron (whitelist de IP) tiene huecos reales que hay que documentar, no esconder."
+**Qué decir:**
 
-Números para abrir con fuerza (actualízalos con los reales del día de la demo):
-- **576 combinaciones** en la matriz de recolección (8 especialidades × 4 sufijos de búsqueda × 18 zonas)
-- **~120+ médicos** ya recolectados en producción real (no datos de prueba)
-- **Costo real medido**, no estimado a ojo: Text Search $0.032/llamada, Place Details $0.017/llamada
+> "El Ministerio de Educación pidió un directorio de médicos especialistas: recolectar, guardar, exponer, con seguridad básica. Eso lo cumplimos. Pero en el camino nos topamos con bugs reales — no hipotéticos, bugs que encontramos probando contra producción de verdad — que nos obligaron a decidir entre 'que funcione' y 'que sea honesto sobre lo que sabe y lo que no sabe'. Elegimos lo segundo, y eso es lo que les vamos a mostrar."
+
+**Números para abrir con fuerza** (dilos de memoria, no los leas de una diapositiva):
+
+- 768 médicos, 8 especialidades, cobertura real en las 18 zonas de la ciudad
+- 576 combinaciones en la matriz de recolección balanceada
+- Costo medido con precisión real: \$104.19 de \$200, con tarifas distintas por tipo de llamada
 
 ---
 
 ## 1. Qué construimos (1 min, rápido)
 
-Arquitectura en una frase: **Cloud Functions (TypeScript) + Firestore + Google Places API + Firebase Hosting**, con IP whitelist, App Check y rate limiting como capas de seguridad, y un scheduler diario que audita el sesgo de la fuente y cumple los términos de servicio de Google.
+**Qué decir:**
 
-Muestra el diagrama de arquitectura (sección 3 de `plan.md`) 5 segundos, no más — el resto de la presentación ES el diagrama explicado en vivo.
+> "Cloud Functions en TypeScript, Firestore, Google Places API, Firebase Hosting. Tres capas de seguridad — whitelist de IP, App Check, rate limiting — y dos procesos programados: uno que audita el sesgo de la fuente, otro que cumple los términos de servicio de Google purgando datos vencidos."
+
+Muestra el diagrama de arquitectura (sección 3 de `plan.md`) 5 segundos, no más. El resto de la presentación ES el diagrama explicado en vivo, con evidencia.
 
 ---
 
 ## 2. Auditamos nuestros propios datos (5 min) — el corazón de la presentación
 
-**Hipótesis:** Google Places no representa Ciudad de Guatemala de forma uniforme. Zonas de mayor poder adquisitivo tienen más presencia digital (más clínicas con página web, más reseñas); zonas de menor ingreso aparecen subrepresentadas — no porque haya menos médicos, sino porque hay menos digitalización.
+**Hipótesis a decir en voz alta:**
 
-**Demo en vivo:**
-1. Abre la UI → sección "Auditoría de cobertura" → el heatmap zona × especialidad.
-2. Señala una celda pálida o vacía: "Esto no significa que no haya médicos aquí. Significa que Google Places no los tiene digitalizados, o que todavía no hemos buscado ahí."
-3. Explica cómo se distingue esa diferencia — **esto es un bug real que encontramos y arreglamos**, vale la pena contarlo: al principio, `searches_run` (cuántas veces buscamos en esa celda) se calculaba contando los médicos ya guardados. Una zona donde buscamos 10 veces y Google no devolvió nada se veía **idéntica** a una zona donde nunca buscamos — ambas en cero. Lo corregimos para que cuente desde `collection_runs` (el registro de cada búsqueda, incluidas las que no encontraron nada), así el heatmap sí puede decir "buscamos y no hay" en vez de solo "no hay".
+> "Google Places no representa Ciudad de Guatemala de forma uniforme. No porque Google sea malintencionado, sino porque el mapa que tiene refleja quién se ha digitalizado, no quién existe."
 
-**El hallazgo a declarar en voz alta:**
-> "Usar este dataset para asignar recursos de salud o planificar cobertura amplificaría la brecha digital existente — las zonas menos digitalizadas se verían como zonas sin médicos."
+**Demo en vivo — abre la UI, sección de heatmap:**
 
-Esto es lo que convierte el proyecto de "hicimos un directorio" a "auditamos una fuente de datos", que es el objetivo real del curso.
+1. Señala el botón de toggle. Explica por qué existe:
+
+   > "Este heatmap tiene dos vistas, y la diferencia entre ellas es un hallazgo real que tuvimos en revisión de código. 'Resultados encontrados' mide cuántos médicos devolvió la búsqueda — eso es cobertura real. '% con teléfono' mide, de los que sí encontramos, cuántos tienen un dato de contacto completo. Al principio solo teníamos la segunda vista, y una celda con cero resultados se veía **idéntica** a una celda con resultados pero sin teléfono — ambas en blanco. Eso mezclaba dos cosas completamente distintas: 'la fuente no tiene nada aquí' contra 'la fuente tiene algo pero incompleto'. Las separamos."
+
+2. Cambia a "Resultados encontrados". Señala una celda pálida o en cero — usa una real, verificada: **zona 10 / dermatología**, **zona 16 / ortopedia**, o **zona 17 / cardiología** (las tres tienen 0 resultados confirmados, no es un cálculo aproximado).
+
+   > "Esta celda no significa que no haya dermatólogos en zona 10. Significa que buscamos y Google Places no nos devolvió ninguno bajo ese término de búsqueda."
+
+3. Si el tiempo lo permite, señala el patrón por especialidad, no solo por zona:
+
+   > "Miren ortopedia en particular — es la especialidad con más celdas en cero en toda la grilla, en varias zonas distintas. Eso no es una zona 'mala', es que la fuente completa está peor digitalizada para esa especialidad específica. Es un hallazgo más preciso que 'esta zona no tiene datos'."
+
+**El hallazgo a declarar en voz alta, cerrando la sección:**
+
+> "Usar este dataset para asignar recursos de salud o planificar cobertura amplificaría la brecha digital existente — las zonas y especialidades menos digitalizadas se verían como zonas sin médicos."
 
 ---
 
 ## 3. Encontramos un problema de cumplimiento (3 min)
 
-**El hallazgo:** los Términos de Servicio de Google Maps Platform permiten guardar `place_id` indefinidamente, pero el resto del contenido (nombre, teléfono, dirección) solo se puede cachear **30 días**. Un proyecto académico que guarda datos "para siempre porque es solo una tarea" está en incumplimiento real.
+**El hallazgo:**
 
-**Demo en vivo:** muestra el código de `purgeExpiredRecords` (o el log de una ejecución) — cada documento vencido se re-consulta por `place_id` (persistente, permitido) y se renueva, o si ya no existe / no hay forma de refrescarlo, se purga y solo sobrevive el `place_id`.
+> "Los Términos de Servicio de Google Maps Platform permiten guardar `place_id` para siempre, pero el resto del contenido — nombre, teléfono, dirección — solo se puede cachear 30 días. Un proyecto académico que guarda datos 'para siempre porque es solo una tarea' está, técnicamente, en incumplimiento real."
 
-**El detalle que muestra rigor real, no solo una función que "borra cosas":**
-> "Un médico que pidió que lo removiéramos (`suppressed: true`) nunca se refresca — lo purgamos directo. Si lo refrescáramos, estaríamos volviendo a descargar y guardar sus datos personales cada 30 días para siempre, exactamente lo que él pidió que no hiciéramos. Este es un bug que encontramos nosotros mismos en revisión de código, no algo que nos señalara alguien más."
+**Demo en vivo (si tienen acceso a Firestore Console abierto):** muestra un documento purgado — busca uno con `purge_reason` en vez de `nombre`.
 
----
+> "Cuando un documento vence, no lo borramos a ciegas: primero intentamos refrescarlo re-consultando por `place_id` — que sí se puede retener indefinidamente. Si no se puede refrescar, purgamos el contenido y guardamos por qué: `purge_reason` puede ser 'ya no existe en Places', 'no teníamos la API key configurada', o 'el médico pidió ser removido'. Esa distinción importa — no es lo mismo un error de configuración nuestro que una confirmación real de Google."
 
-## 4. Demo de la whitelist — en vivo, con fallos reales (3 min)
+**La anécdota que vale oro:**
 
-No expliques la whitelist en abstracto. Muéstrala fallando y funcionando:
-
-1. `curl` a `/directorio` sin header autorizado → **403**.
-2. `curl` con un header `X-Forwarded-For` falsificado (poniendo la IP autorizada como primer valor) → **sigue bloqueado**. Explica por qué: Google agrega la IP real al final de la cadena; todo lo anterior lo controla el cliente y es falsificable. Confiar en la primera posición es el error que casi todos cometen.
-3. Abre Firestore Console → colección `access_log` → muestra las entradas 403 quedando registradas.
-
-**La anécdota que vale oro en la demo:** cuenta que este error apareció **dos veces** en el proyecto real — una vez lo encontramos y arreglamos nosotros, y una vez un cambio de un compañero lo reintrodujo sin querer (asumió una topología de red que el proyecto no tiene). Lo volvimos a encontrar probándolo contra producción real, no solo contra el emulador — porque cuando desplegamos, la UI pasa por Firebase Hosting como proxy, agregando un salto extra a la cadena de IPs que el emulador no simula. Esto es la diferencia entre "declarar que funciona" y "demostrar que funciona con evidencia real".
+> "Un médico que pidió su remoción nunca se refresca — se purga directo, sin intentar re-descargar sus datos. Si lo refrescáramos, estaríamos volviendo a guardar su información personal cada 30 días, exactamente lo que pidió que no hiciéramos. Este bug lo encontramos nosotros mismos revisando el código, antes de que nadie más lo notara."
 
 ---
 
-## 5. Por qué la whitelist no basta (3 min)
+## 4. Demo de la whitelist — en vivo, con la topología real (4 min)
 
-Muestra la tabla de limitaciones documentadas (`plan.md` sección 11) y explica **dos o tres**, no las siete — elige las que mejor cuentes:
+**Contexto que hay que decir primero, porque cambia el resto de la demo:**
 
-- No hay autenticación real, solo ubicación de red — cualquiera dentro de esa IP tiene acceso.
-- IPs dinámicas rompen el acceso — le pasó literalmente a Diego durante el despliegue (su ISP le cambió la IP a medio proyecto).
-- No protege contra abuso desde una IP ya autorizada — por eso además hay rate limiting.
+> "La whitelist de IP no protege un solo salto de red — protege dos. Nuestra UI llama a `/directorio` a través de Firebase Hosting, que actúa como proxy: agrega la IP real del visitante, y luego Cloud Functions agrega encima la IP propia de Hosting. Confiar en la posición equivocada de esa cadena — la primera, o incluso la última — deja pasar ataques o bloquea gente real. Lo confirmamos contra producción real, no en teoría: la primera vez que probamos esto en vivo, la whitelist nos bloqueaba a nosotros mismos mientras un spoof sí pasaba."
 
-**Defensa en profundidad:** App Check (token de reCAPTCHA v3 verificado en cada request), rate limiting transaccional en Firestore para `/correcciones` (el único endpoint público, sin whitelist a propósito — tiene que poder llamarlo cualquier médico que quiera pedir su remoción).
+**Comando 1 — intento de spoofing (correr desde cualquier máquina, funciona igual):**
+
+```bash
+curl -s -i "https://rai-proyecto1-502801.web.app/directorio" \
+  -H "X-Forwarded-For: 190.56.194.12"
+```
+
+> "Estoy mandando, a mano, la IP que sé que está autorizada, esperando que el sistema me crea. No funciona — el sistema ignora lo que yo le diga al principio de la cadena y usa la posición que Google mismo controla, no la que yo controlo."
+
+**Resultado esperado:** `401 {"error":"Missing App Check token"}` si corres esto desde una red ya autorizada (verás que el sistema te identificó correctamente a TI, no al spoof — pasaste la whitelist como tú mismo, no como el spoof). Si corres esto desde una red **no** autorizada, verás `403 {"error":"Forbidden"}` — el spoof tampoco te deja entrar.
+
+**Comando 2 — la petición honesta, sin trucos:**
+
+```bash
+curl -s -i "https://rai-proyecto1-502801.web.app/directorio"
+```
+
+> "Sin ningún header falso. El resultado depende exclusivamente de si la red desde la que corro esto está en la whitelist — no de nada que yo pueda escribir."
+
+**El truco para el 403 en vivo, honesto:** ninguno de los dos comandos anteriores da 403 si los corres desde tu propia laptop, porque tu red ya está autorizada — y falsificar el header no cambia eso (esa es justo la prueba de que funciona). Para mostrar el bloqueo real en vivo:
+
+- Pide a alguien del público que corra el segundo comando desde su celular (datos móviles, no el wifi del salón).
+- O tú mismo, desde datos móviles en un segundo dispositivo.
+
+> "Le voy a pedir a alguien que corra este mismo comando desde su celular, con datos móviles, ahora mismo."
+
+Eso es más convincente que cualquier cosa preparada — es evidencia en vivo, no una captura de pantalla.
+
+**Si Firestore Console está a mano:** abre la colección `access_log` y muestra las entradas quedando registradas — tanto los 403 como los 401, con IP, ruta y resultado.
 
 ---
 
-## 6. Derechos de los titulares de datos + Data Card (2 min)
+## 5. Por qué la whitelist no basta (2 min)
 
-Los médicos en el directorio **no dieron consentimiento** — su info es pública en Google Maps, que no es lo mismo que consentimiento para redistribución.
+Elige 2-3 de estas, no las siete de `plan.md` sección 11:
 
-**Demo en vivo:** formulario de corrección/remoción en la UI. Explica la asimetría de diseño (esto demuestra criterio, no solo funcionalidad):
-- **Remoción → automática e inmediata.** Prioriza al titular del dato sobre la completitud del directorio.
-- **Corrección de datos → queda pendiente de revisión humana.** Publicar un teléfono o dirección falsos sin verificar puede dañar a un paciente.
+> "La whitelist es ubicación de red, no identidad — cualquiera dentro de esa IP tiene acceso, no solo la persona autorizada. Las IPs dinámicas rompen el acceso — me pasó literalmente a mí, dos veces, durante el despliegue de este proyecto, mi propio ISP me cambió la IP a media sesión. Y la whitelist sola no protege contra abuso desde una IP ya autorizada — por eso `/correcciones`, que es pública a propósito, tiene rate limiting transaccional en Firestore en vez de whitelist."
 
-Menciona la Data Card (si ya está armada) — documento que declara: motivación, composición del dataset, procedimiento de recolección, limitaciones conocidas, **usos prohibidos**.
+> "Por eso agregamos App Check como segunda capa independiente — un token de reCAPTCHA v3 verificado en cada request, no solo 'la red correcta'."
+
+---
+
+## 6. Derechos de los titulares de datos (2 min)
+
+**Demo en vivo:** en la tabla de resultados, haz clic en "Corregir/remover" de cualquier fila.
+
+> "No le pedimos a nadie que sepa un `place_id` de memoria — se busca a sí mismo en la tabla y hace clic. El campo se llena solo."
+
+**La asimetría de diseño, dicha en voz alta porque es la parte que demuestra criterio:**
+
+> "Si pides que te remuevan, se aplica al instante — priorizamos al titular del dato sobre la completitud del directorio. Si pides corregir un dato, queda pendiente de revisión humana — publicar un teléfono o dirección falsos sin verificar puede dañar a un paciente real. No es la misma respuesta para los dos casos, y esa diferencia es intencional."
 
 ---
 
 ## 7. Para qué NO debe usarse este dataset (2 min)
 
-Cierra con límites, no con el buscador. Esto es lo que un jurado recuerda:
+Cierra con límites, no con el buscador.
 
-> "Este directorio es una referencia informativa. No valida credenciales médicas ni vigencia de colegiaturas. No debe usarse para decisiones clínicas, de emergencia, ni para asignar recursos de salud — porque, como mostramos en el heatmap, la ausencia de datos en una zona no significa ausencia de médicos."
+> "Este directorio es una referencia informativa. No valida credenciales médicas ni vigencia de colegiaturas. No debe usarse para decisiones clínicas, de emergencia, ni para asignar recursos de salud — porque, como mostramos hace un momento, la ausencia de datos en una celda no significa ausencia de médicos, significa ausencia de digitalización."
 
 ---
 
 ## 8. Cierre y preguntas (1 min)
 
-> "Empezamos con un enunciado que pedía un directorio con seguridad básica. Terminamos con un sistema que audita su propia fuente de datos, respeta los derechos de quien aparece en él, y documenta honestamente dónde falla — en vez de fingir que no falla."
+> "Empezamos con un enunciado que pedía un directorio con seguridad básica. Terminamos con un sistema que audita su propia fuente de datos, respeta los derechos de quien aparece en ella, y documenta honestamente dónde falla — en vez de fingir que no falla."
 
 ---
 
 ## Preguntas esperadas y respuestas cortas
 
 **"¿Por qué no usaron un modelo/LLM para normalizar especialidades?"**
-Lo evaluamos (plan.md sección 9) y decidimos reglas determinísticas: sin modelo, sin alucinación posible, auditable. Un LLM hubiera necesitado un set de evaluación etiquetado a mano y presupuesto de inferencia que no se justificaba para el alcance de 4 semanas — y una especialidad médica alucinada puede derivar en daño real.
+Reglas determinísticas, documentado en `plan.md` sección 9: sin modelo, sin alucinación posible, auditable. Un LLM necesita un set de evaluación etiquetado a mano y presupuesto de inferencia que no se justificaba para 4 semanas — y una especialidad médica alucinada puede derivar en daño real.
 
-**"¿Qué tan seguro es esto en producción de verdad, no solo en el enunciado?"**
-Lo desplegamos a un proyecto GCP real y encontramos (y arreglamos) bugs que solo aparecen ahí: la topología real de Firebase Hosting agregando un salto a la cadena de IPs, una API key restringida por IP incompatible con llamadas server-to-server desde Cloud Functions, cuotas diarias frenando la recolección exactamente como se diseñó. Todo documentado en `docs/deploy-troubleshooting.md`.
+**"¿La whitelist realmente sirve entonces, si la pueden bypassear?"**
+No la pueden bypassear — probamos exactamente eso en vivo. Lo que sí es cierto es que solo protege ubicación de red, no identidad, y lo documentamos como limitación honesta en vez de venderla como solución completa. Por eso hay dos capas más (App Check, rate limiting).
+
+**"¿Qué tan seguro es esto en producción real, no solo en el enunciado?"**
+Lo desplegamos a un proyecto GCP real y encontramos — y arreglamos — bugs que solo aparecen ahí: la topología real de Firebase Hosting agregando un salto a la cadena de IPs, una API key restringida por IP incompatible con llamadas server-to-server, un campo de zona que nunca se verificaba contra la dirección real. Documentado en `docs/deploy-troubleshooting.md`.
 
 **"¿Cuánto costó esto realmente?"**
-Telemetría por corrida en `collection_runs`: costo separado por tipo de llamada (Text Search vs Place Details, que tienen tarifas distintas), no un número inventado. Dentro del crédito de $200/mes de Places API, con cuota diaria como límite duro.
-
-**"¿Qué pasa si alguien abusa del endpoint de correcciones, que es público?"**
-Rate limiting transaccional en Firestore — 5 requests por minuto por IP, corregido para que sea consistente incluso si Cloud Functions escala a múltiples instancias (un rate limiter en memoria no sirve ahí, y lo documentamos explícitamente).
+\$104.19 de \$200, medido con tarifas reales separadas por tipo de llamada — no un número inventado. `collection_runs` guarda el costo de cada corrida individual.
 
 **"¿Cómo saben que el heatmap mide sesgo real y no solo su propia estrategia de búsqueda?"**
-Por eso la cobertura balanceada es una regla, no una sugerencia: el mismo número de combinaciones especialidad × sufijo se ejecuta en cada zona, sin importar cuántos resultados devuelva. Si concentráramos esfuerzo donde "sí hay resultados", estaríamos midiendo nuestro propio criterio de búsqueda, no la realidad de la fuente.
+Cobertura balanceada obligatoria: el mismo número de combinaciones por zona, sin importar el rendimiento. Concentrar esfuerzo donde "sí hay resultados" mediría nuestro propio criterio, no la fuente. Además, el orden de recolección es ancho-primero — cubre toda la grilla al menos una vez antes de profundizar en ninguna zona, para que la cobertura parcial sea representativa.
+
+**"¿Qué pasa si alguien encuentra un dato incorrecto sobre sí mismo que ustedes no puedan verificar?"**
+El endpoint de correcciones existe exactamente para eso — y la remoción se aplica de inmediato sin necesidad de que nosotros verifiquemos nada primero, porque el costo de sobre-remover es bajo comparado con ignorar a alguien que no consintió aparecer.
 
 ---
 
 ## Notas para el presentador
 
 - No narres el código línea por línea. Cuenta el argumento, muestra la evidencia (curl, Firestore Console, la UI) en 10-15 segundos por punto.
-- Los "bugs que encontramos y arreglamos nosotros mismos" son tu mejor material — demuestran que hubo revisión real, no solo que "funcionó a la primera". Úsalos.
-- Si algo falla en vivo durante la demo (quota agotada, un endpoint lento): decilo en voz alta y sigue. "Esto es justo la cuota diaria de $200 protegiendo el presupuesto — funcionando" es mejor material de presentación que fingir que no pasó nada.
+- Los bugs reales que encontraron y arreglaron ustedes mismos son el mejor material que tienen — demuestran revisión real, no solo que "funcionó a la primera". Están marcados en este guion como "la anécdota que vale oro" — úsalos, no los recortes por tiempo.
+- El truco del 403 en vivo (pedirle a alguien del público que corra el curl desde su celular) es más convincente que cualquier captura preparada. Practícalo antes para saber exactamente qué decir mientras esperas su respuesta.
+- Si algo falla en vivo durante la demo (quota agotada, un endpoint lento): decilo en voz alta y sigue. "Esto es justo la cuota diaria protegiendo el presupuesto — funcionando" es mejor material de presentación que fingir que no pasó nada.
+- Ten `docs/data-card.pdf` y `plan.md` abiertos en pestañas por si alguien pregunta un número que no memorizaste.
