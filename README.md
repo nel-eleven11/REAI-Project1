@@ -2,6 +2,15 @@
 
 Directorio de Médicos Especialistas — Ciudad de Guatemala. Ver [plan.md](plan.md) para el detalle completo del proyecto.
 
+## Entregables
+
+| Documento | Contenido |
+|---|---|
+| [docs/documentacion-tecnica.md](docs/documentacion-tecnica.md) | Documentación técnica (≤5 pág.), diagrama de arquitectura, modelo de amenazas y postura ética |
+| [docs/data-card.md](docs/data-card.md) | Data Card del dataset: composición, limitaciones y usos prohibidos |
+| [docs/auditoria-cobertura.md](docs/auditoria-cobertura.md) | Informe de auditoría de cobertura y sesgo |
+| [docs/keyword-strategy.md](docs/keyword-strategy.md) | Estrategia de keywords |
+
 ## Setup por integrante
 
 Cada miembro del equipo usa **su propia cuenta de Google Cloud y su propio proyecto Firebase** (billing individual). Nada de eso vive en el repo compartido.
@@ -108,19 +117,67 @@ aparecer en `/directorio` → `/coverage` sigue respondiendo. Corre con el resto
 npm --prefix functions run test:emulator
 ```
 
+`firebase-tools` exige **JDK 21 o superior**. Si el `java` por defecto de tu máquina es más
+viejo, la suite falla antes de arrancar; apuntá `JAVA_HOME` a una versión compatible:
+
+```bash
+JAVA_HOME=/usr/lib/jvm/java-26-openjdk npm --prefix functions run test:emulator
+```
+
+## Informe de auditoría de cobertura
+
+`functions/scripts/coverage-report.js` genera `docs/auditoria-cobertura-datos.md` con los
+números reales del informe (matriz zona × especialidad, calidad por zona y telemetría de
+costo), recalculando `coverage_stats` por la misma ruta de código que usan la función
+programada y el heatmap de la UI:
+
+```bash
+npm --prefix functions run build
+
+# contra el emulador
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
+  node functions/scripts/coverage-report.js --project demo-test
+
+# contra producción
+GOOGLE_APPLICATION_CREDENTIALS=key.json \
+  node functions/scripts/coverage-report.js --project <project-id>
+```
+
 ### Checklist manual contra producción
 
 Correr pruebas automatizadas contra producción consume cuota real de la API de Places, así que el
 flujo e2e completo contra producción es un checklist manual antes de la demo, no un script en CI:
 
-- [ ] Desplegar functions + hosting + firestore rules/indexes al proyecto real (`firebase deploy`).
-- [ ] Confirmar que `GET /directorio` responde 403 desde una IP no autorizada.
-- [ ] Confirmar que `GET /directorio` responde 200 con datos desde la IP whitelisteada real.
+- [x] Desplegar functions + hosting + firestore rules/indexes al proyecto real (`firebase deploy`).
+      **Ojo:** en el *primer* deploy de un proyecto nuevo, Hosting se publica antes de que existan las
+      funciones, así que los rewrites de `/directorio`, `/coverage` y `/correcciones` quedan resolviendo
+      a nada y devuelven **404**. Se arregla con un `firebase deploy --only hosting` posterior. No es un
+      error de configuración; es el orden del primer deploy.
+- [x] Confirmar que `GET /directorio` responde 403 desde una IP no autorizada. Verificado en producción
+      sin montar nada: la IP pública del ISP cambió sola y la respuesta pasó a
+      `403 {"error":"Forbidden","ip":"..."}`, con la entrada correspondiente en `access_log`.
+      (Un `X-Forwarded-For` falsificado *no* sirve para provocar el 403: al pasar por Hosting se usa la
+      posición penúltima, así que el header inyectado se ignora y la petición sigue llegando como IP
+      autorizada — que es justamente el comportamiento buscado.)
+
+> **Cómo averiguar tu IP para `IP_WHITELIST` (importante).** No uses `ifconfig.me`/`api.ipify.org` sin
+> verificar. En redes con varios enlaces WAN y balanceo por destino, esos servicios responden con una IP
+> de un enlace distinto al que se usa para llegar a Google, y rotan entre peticiones. Medido en esta red:
+> `ipify` devolvía tres IPs en round-robin (`190.56.194.12`, `181.209.179.43`, `190.14.11.2`) mientras
+> `access_log` registraba **siempre una sola**. Configurar la whitelist con la IP equivocada da 403
+> permanente sin ninguna pista de por qué.
+>
+> La fuente correcta es la propia función: pegale a `/directorio` desde la red en cuestión y leé la IP que
+> viene en el cuerpo del 403. Esa es, por definición, la que Firebase ve.
+- [x] Confirmar que `GET /directorio` responde 200 con datos desde la IP whitelisteada real.
+      Con `APP_CHECK_ENFORCE=true`, una petición sin token responde **401 `Missing App Check token`** —
+      eso ya prueba que la whitelist dejó pasar la IP; el 200 con datos requiere el token del navegador.
 - [ ] Abrir la UI en la URL de Hosting y verificar que el buscador, la tabla y el heatmap cargan.
 - [ ] Enviar una remoción de prueba desde la UI y confirmar que el registro desaparece del
       buscador en la siguiente búsqueda.
-- [ ] Revisar `access_log` en Firestore y confirmar que quedaron registradas entradas de
-      `/directorio` (200/403) y de `/correcciones` (201/400/404/429).
-- [ ] Confirmar que `purgeExpiredRecordsScheduled` y `computeCoverageStatsScheduled` aparecen
-      programadas en Cloud Scheduler.
+- [x] Revisar `access_log` en Firestore y confirmar que quedaron registradas entradas de
+      `/directorio` (200/403) y de `/correcciones` (201/400/404/429). — pendiente aún el tramo de
+      `/correcciones`, que se cubre con la remoción de prueba desde la UI.
+- [x] Confirmar que `purgeExpiredRecordsScheduled` y `computeCoverageStatsScheduled` aparecen
+      programadas en Cloud Scheduler. (03:00 y 04:00 UTC, ambas `ENABLED`.)
 

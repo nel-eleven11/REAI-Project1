@@ -14,6 +14,11 @@ export interface DataCardStats {
   lowest_coverage_cells: Array<{ zona: string; especialidad: string; unique_results: number; searches_run: number }>;
   total_collection_runs: number;
   total_api_calls: number;
+  total_results_new: number;
+  total_results_duplicated: number;
+  // Share of returned results already known, over new + duplicated — not over
+  // total_active_doctors, which purges and removals make a different number.
+  duplicate_rate_pct: number;
   total_estimated_cost_usd: number;
   earliest_collection: string | null;
   latest_collection: string | null;
@@ -71,6 +76,10 @@ export async function computeDataCardStats(): Promise<DataCardStats> {
   const runs = runsSnap.docs.map((doc) => doc.data() as CollectionRun);
   const totalApiCalls = runs.reduce((sum, r) => sum + (r.api_calls ?? 0), 0);
   const totalCost = runs.reduce((sum, r) => sum + (r.estimated_cost_usd ?? 0), 0);
+  const totalNew = runs.reduce((sum, r) => sum + (r.results_new ?? 0), 0);
+  const totalDuplicated = runs.reduce((sum, r) => sum + (r.results_duplicated ?? 0), 0);
+  const totalReturned = totalNew + totalDuplicated;
+  const duplicateRate = totalReturned ? (totalDuplicated / totalReturned) * 100 : 0;
 
   return {
     total_active_doctors: totalActive,
@@ -85,6 +94,9 @@ export async function computeDataCardStats(): Promise<DataCardStats> {
     lowest_coverage_cells: lowest,
     total_collection_runs: runs.length,
     total_api_calls: totalApiCalls,
+    total_results_new: totalNew,
+    total_results_duplicated: totalDuplicated,
+    duplicate_rate_pct: Number(duplicateRate.toFixed(2)),
     total_estimated_cost_usd: Number(totalCost.toFixed(2)),
     earliest_collection: earliest,
     latest_collection: latest,
