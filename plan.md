@@ -306,13 +306,15 @@ Formato basado en el Data Cards Playbook de Google. Secciones:
 
 `collection_runs` permite reportar números concretos en lugar de "gastamos poco". El costo estimado usa tarifas separadas por tipo de llamada — Text Search (~$0.032) y Place Details (~$0.017) tienen precios distintos en Google Places API, así que sumar todas las llamadas a una sola tarifa subestimaba el gasto real.
 
-- gasto total en USD
+- gasto total en USD (teórico, según tarifa de lista — ver nota sobre el esquema de precios abajo)
 - registros únicos obtenidos
 - **costo por médico único**
 - tasa de duplicados (mide la eficiencia de la estrategia de keywords)
 - costo por zona — revela dónde la fuente rinde menos
 
-Estos números entran directo en la presentación y demuestran disciplina de FinOps, no solo que no se reventó el crédito.
+Estos números entran directo en la presentación y demuestran disciplina de FinOps: medimos el gasto real por llamada, no solo un genérico "no se pasó del límite".
+
+**Corrección sobre el crédito de \$200 (verificado contra documentación oficial de Google, no asumido):** el enunciado original del proyecto menciona un crédito mensual fijo de \$200 en Places API. Ese crédito **se descontinuó el 1 de marzo de 2025** — Google Maps Platform lo reemplazó por un esquema de **10,000 llamadas gratis al mes, por producto**, en el nivel Essentials. Con 5,821 llamadas totales en esta recolección, todo el consumo cayó dentro de esa cuota gratuita — el costo de \$104.19 reportado arriba es el valor teórico según tarifa de lista, no un cargo real facturado. Verificado directamente en la consola de facturación de GCP (sin factura, sin crédito consumido) y en la documentación oficial de Google ([Places API Usage and Billing](https://developers.google.com/maps/documentation/places/web-service/usage-and-billing)).
 
 ---
 
@@ -334,7 +336,7 @@ Estos números entran directo en la presentación y demuestran disciplina de Fin
 
 | Riesgo | Mitigación |
 |---|---|
-| Gasto excede crédito $200 USD | Cuotas diarias + alertas 50/90% + desarrollo en emulador + telemetría de costo por corrida |
+| Gasto excede presupuesto de \$200 USD/mes (budget de alertas, no crédito de la API) | Cuotas diarias + alertas 50/90% + desarrollo en emulador + telemetría de costo por corrida |
 | Datos duplicados | `place_id` como ID de documento (upsert natural) |
 | Nomenclatura inconsistente en Maps | Estrategia de keywords documentada y probada antes de recolección masiva |
 | Exposición de API key | Variables de entorno + restricción por IP en GCP |

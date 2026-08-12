@@ -60,7 +60,9 @@ Este dataset fue construido para un directorio de referencia de médicos especia
 
 **Estrategia:** matriz de 576 combinaciones (8 especialidades × 4 sufijos de búsqueda × 18 zonas), documentada en `docs/keyword-strategy.md`. El orden de recolección es ancho-primero: se prioriza tener al menos una búsqueda por cada celda zona × especialidad antes de profundizar con sufijos adicionales, para que la cobertura parcial (limitada por cuota diaria) sea representativa de toda la ciudad y no solo de las primeras zonas buscadas.
 
-**Costo real medido** (no estimado): 349 corridas de recolección, 5,821 llamadas a la API, **\$104.19 USD** del crédito mensual de \$200. Costo separado por tipo de llamada: Text Search (\$0.032/llamada) y Place Details (\$0.017/llamada), con tarifas reales distintas.
+**Costo teórico medido** (según tarifa de lista, no cargo facturado): 349 corridas de recolección, 5,821 llamadas a la API, **\$104.19 USD**. Costo separado por tipo de llamada: Text Search (\$0.032/llamada) y Place Details (\$0.017/llamada), con tarifas reales distintas.
+
+**Nota sobre precios (verificada contra documentación oficial de Google):** el enunciado original de este proyecto asume un crédito mensual fijo de \$200 en Places API. Ese crédito se descontinuó el 1 de marzo de 2025; el esquema actual otorga **10,000 llamadas gratis al mes por producto** (nivel Essentials). Las 5,821 llamadas de esta recolección caen completas dentro de esa cuota gratuita — el costo real facturado fue **\$0.00**, confirmado en la consola de facturación de GCP. El monto de \$104.19 sigue siendo el dato relevante para telemetría de FinOps (mide disciplina de gasto, no solo "no se pasó del límite"), pero no representa un cargo real bajo el esquema de precios vigente.
 
 ## 4. Preprocesamiento y normalización
 

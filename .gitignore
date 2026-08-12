@@ -5,10 +5,6 @@
 # Local frontend config (Firebase project keys, App Check site key)
 public/config.js
 
-# Generated copy for Hosting to serve plan.md — source of truth is the root plan.md
-public/plan.md
-
-
 # Local Firebase project alias (each team member points to their own GCP/Firebase project)
 .firebaserc
 

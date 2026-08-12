@@ -123,5 +123,4 @@ flujo e2e completo contra producción es un checklist manual antes de la demo, n
       `/directorio` (200/403) y de `/correcciones` (201/400/404/429).
 - [ ] Confirmar que `purgeExpiredRecordsScheduled` y `computeCoverageStatsScheduled` aparecen
       programadas en Cloud Scheduler.
-- [ ] Abrir `/plan.md` desde la UI desplegada (heatmap y footer) y confirmar que carga, no 404.
 
