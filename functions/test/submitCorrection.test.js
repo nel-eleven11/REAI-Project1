@@ -42,7 +42,7 @@ test("removal: applied automatically, marks suppressed=true and estado=aplicada"
 
   const res = await fetch(CORRECTIONS_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Forwarded-For": "192.0.2.10" },
+    headers: { "Content-Type": "application/json", "X-Forwarded-For": "192.0.2.10, 66.102.8.200" },
     body: JSON.stringify({ place_id: placeId, tipo: "remocion", mensaje: "I do not authorize appearing here" }),
   });
 
@@ -65,7 +65,7 @@ test("correction: stays pending, does not modify suppressed", async () => {
 
   const res = await fetch(CORRECTIONS_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Forwarded-For": "192.0.2.11" },
+    headers: { "Content-Type": "application/json", "X-Forwarded-For": "192.0.2.11, 66.102.8.200" },
     body: JSON.stringify({ place_id: placeId, tipo: "correccion", mensaje: "The phone number is wrong" }),
   });
 
@@ -86,7 +86,7 @@ test("rate limit: blocks after exceeding the max requests in the window", async 
   const makeRequest = () =>
     fetch(CORRECTIONS_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Forwarded-For": ip },
+      headers: { "Content-Type": "application/json", "X-Forwarded-For": `${ip}, 66.102.8.200` },
       body: JSON.stringify({ place_id: placeId, tipo: "correccion", mensaje: "test rate limit" }),
     });
 
@@ -102,7 +102,7 @@ test("rate limit: blocks after exceeding the max requests in the window", async 
 test("correction on a non-existent place_id returns 404", async () => {
   const res = await fetch(CORRECTIONS_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Forwarded-For": "192.0.2.12" },
+    headers: { "Content-Type": "application/json", "X-Forwarded-For": "192.0.2.12, 66.102.8.200" },
     body: JSON.stringify({ place_id: "does-not-exist-ever", tipo: "correccion", mensaje: "x" }),
   });
   assert.equal(res.status, 404);

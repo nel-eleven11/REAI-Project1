@@ -24,20 +24,27 @@ export const helloWorld = onRequest((req, res) => {
   res.status(200).send("Hello world, Diego Pablo");
 });
 
+// Reached through the Firebase Hosting rewrite (firebase.json) — the UI
+// calls same-origin — so there are two trusted X-Forwarded-For hops
+// (Hosting + GFE), not one. Confirmed against real production traffic.
+const HOSTING_TRUSTED_HOPS = 2;
+
 const directoryApp = express();
-directoryApp.use(ipWhitelist(process.env.IP_WHITELIST));
+directoryApp.use(ipWhitelist(process.env.IP_WHITELIST, HOSTING_TRUSTED_HOPS));
 directoryApp.use(appCheckGuard(appCheckEnforce));
 directoryApp.get("/directorio", getDirectoryHandler);
 
 export const getDirectory = onRequest(directoryApp);
 
 const coverageApp = express();
-coverageApp.use(ipWhitelist(process.env.IP_WHITELIST));
+coverageApp.use(ipWhitelist(process.env.IP_WHITELIST, HOSTING_TRUSTED_HOPS));
 coverageApp.use(appCheckGuard(appCheckEnforce));
 coverageApp.get("/coverage", getCoverageHandler);
 
 export const getCoverage = onRequest(coverageApp);
 
+// No Hosting rewrite for these — invoked directly against the Cloud
+// Function URL, so only one trusted hop (GFE).
 const collectApp = express();
 collectApp.use(ipWhitelist(process.env.IP_WHITELIST));
 collectApp.get("/recolectarMedicos", collectDoctorsHandler);

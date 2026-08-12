@@ -237,14 +237,18 @@ Implementamos la IP whitelist como se solicita, y documentamos por qué no basta
 
 **Implementación:**
 - Middleware como primer paso de la request; si falla, retorna 403 sin ejecutar lógica adicional.
-- IP real tomada del **último** valor de `X-Forwarded-For` (el que agrega Cloud Functions/GFE al invocar directo, sin External HTTPS Load Balancer). Todo lo anterior a esa posición es controlado por el cliente y falsificable. Un merge de un compañero cambió esto a la penúltima posición asumiendo un Load Balancer externo que este proyecto no tiene configurado — eso reabría el bypass (probado con curl contra el emulador) y de paso bloqueaba tráfico legítimo. Revertido; documentado aquí para que no se repita sin antes confirmar la topología real de deploy.
+- IP real tomada de `X-Forwarded-For`, pero **la posición confiable depende de cómo se invoca la ruta** — confirmado contra producción real, no asumido:
+  - `getDirectory`, `getCoverage`, `submitCorrection`: la UI las llama same-origin a través del rewrite de Firebase Hosting (`firebase.json`). Hosting agrega la IP real del cliente, y luego el GFE de Cloud Functions agrega encima la IP propia de Hosting — **dos saltos confiables**, la IP real queda en la **penúltima** posición. Verificado en producción: pegarle directo a `https://rai-proyecto1-502801.web.app/directorio` registraba `66.102.8.200` (IP de Google) como "última" posición — confiar en la última hubiera identificado a cualquier visitante real como la propia infraestructura de Hosting.
+  - `recolectarMedicos`, `runCollectionBatch` (función `collectDoctors`): sin rewrite de Hosting, se invocan directo contra la URL de Cloud Functions — **un solo salto**, la IP real es la **última** posición.
+  - Todo lo anterior a los saltos confiables es controlado por el cliente y falsificable. `extractClientIp(req, trustedHops)` recibe el número de saltos según cómo se monta cada ruta en `index.ts`.
+  - Historial: un intento de "arreglar" esto asumió un External HTTPS Load Balancer (que este proyecto no tiene) y aplicó penúltima posición a *todas* las rutas por igual — eso rompía las rutas de invocación directa. Se corrigió diferenciando por ruta según cómo se invoca realmente cada una, en vez de asumir una sola topología global.
 - Toda decisión (200/403/429) se registra en `access_log`.
 
 **Limitaciones documentadas:**
 
 | Debilidad | Impacto | Mitigación aplicada |
 |---|---|---|
-| `X-Forwarded-For` falsificable si se lee mal | Bypass total de la whitelist | Uso de `req.ip` confiable; test automatizado que envía el header falso y espera 403 |
+| `X-Forwarded-For` falsificable si se lee mal, o si se asume el número de saltos incorrecto | Bypass total de la whitelist (o bloqueo de tráfico legítimo) | `extractClientIp(req, trustedHops)` con el conteo de saltos verificado por ruta; tests automatizados con headers falsos por cada topología |
 | No hay autenticación, solo ubicación de red | Cualquiera dentro de la IP permitida accede | Rate limit por IP + auditoría |
 | IPs dinámicas / red móvil rompen el acceso | Falsos negativos | Documentado como limitación operativa real |
 | No protege contra abuso desde IP autorizada | Extracción masiva del dataset | Rate limit + paginación con tope de 50 |

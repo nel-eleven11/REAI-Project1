@@ -9,7 +9,7 @@ if (!admin.apps.length) {
 const { computeCoverageStats } = require("../lib/services/coverageStatsService");
 
 const COVERAGE_URL = "http://127.0.0.1:5001/demo-test/us-central1/getCoverage/coverage";
-const WHITELISTED_HEADERS = { "X-Forwarded-For": "127.0.0.1" };
+const WHITELISTED_HEADERS = { "X-Forwarded-For": "127.0.0.1, 66.102.8.200" };
 
 function futureIso(daysFromNow) {
   return new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000).toISOString();
@@ -55,7 +55,7 @@ test("GET /coverage returns the precomputed zona x especialidad matrix", async (
 });
 
 test("GET /coverage is blocked for a non-whitelisted IP", async () => {
-  const res = await fetch(COVERAGE_URL, { headers: { "X-Forwarded-For": "8.8.8.8" } });
+  const res = await fetch(COVERAGE_URL, { headers: { "X-Forwarded-For": "8.8.8.8, 66.102.8.200" } });
   assert.equal(res.status, 403);
 });
 

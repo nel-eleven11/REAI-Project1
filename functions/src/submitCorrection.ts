@@ -7,8 +7,10 @@ import { logAccess } from "./services/accessLog";
 
 const VALID_TYPES: CorrectionType[] = ["correccion", "remocion"];
 
+// Reached through the Firebase Hosting rewrite (see firebase.json), same as
+// getDirectory/getCoverage — two trusted hops (Hosting + GFE).
 export async function submitCorrectionHandler(req: Request, res: Response): Promise<void> {
-  const ip = extractClientIp(req);
+  const ip = extractClientIp(req, 2);
   const route = req.originalUrl;
   res.on("finish", () => {
     void logAccess(ip, route, res.statusCode);

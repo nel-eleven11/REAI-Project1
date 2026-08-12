@@ -15,7 +15,7 @@ if (!admin.apps.length) {
 const DIRECTORY_URL = "http://127.0.0.1:5001/demo-test/us-central1/getDirectory/directorio";
 const CORRECTIONS_URL = "http://127.0.0.1:5001/demo-test/us-central1/submitCorrection/correcciones";
 const COVERAGE_URL = "http://127.0.0.1:5001/demo-test/us-central1/getCoverage/coverage";
-const WHITELISTED_HEADERS = { "X-Forwarded-For": "127.0.0.1" };
+const WHITELISTED_HEADERS = { "X-Forwarded-For": "127.0.0.1, 66.102.8.200" };
 
 function futureIso(daysFromNow) {
   return new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000).toISOString();
@@ -66,7 +66,7 @@ test("e2e: a record is visible, then a removal request makes it disappear from /
   // 3. A removal request is submitted (as the UI's corrections form would do).
   const removalRes = await fetch(CORRECTIONS_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Forwarded-For": "192.0.2.50" },
+    headers: { "Content-Type": "application/json", "X-Forwarded-For": "192.0.2.50, 66.102.8.200" },
     body: JSON.stringify({
       place_id: placeId,
       tipo: "remocion",

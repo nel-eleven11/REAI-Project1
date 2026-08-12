@@ -3,25 +3,27 @@ const assert = require("node:assert/strict");
 
 const BASE_URL = "http://127.0.0.1:5001/demo-test/us-central1/getDirectory/directorio";
 
-test("blocks a client IP that isn't on the whitelist", async () => {
-  const res = await fetch(BASE_URL, { headers: { "X-Forwarded-For": "8.8.8.8" } });
+// getDirectory is mounted with trustedHops=2 (Hosting + GFE, see index.ts) —
+// the real client IP is the SECOND-TO-LAST entry, not the last one.
+
+test("blocks when the real client (second-to-last entry) isn't whitelisted", async () => {
+  const res = await fetch(BASE_URL, { headers: { "X-Forwarded-For": "8.8.8.8, 66.102.8.200" } });
   assert.equal(res.status, 403);
 });
 
-test("blocks an attacker who spoofs the whitelisted IP as the first entry (GFE appends their real IP last)", async () => {
-  // This models the actual deployed topology (direct Cloud Functions URL,
-  // no External HTTPS Load Balancer): the attacker sends one fake value,
-  // GFE appends their real IP as the second, LAST entry.
-  const res = await fetch(BASE_URL, { headers: { "X-Forwarded-For": "127.0.0.1, 8.8.8.8" } });
+test("blocks an attacker spoofing the whitelisted IP earlier in the header", async () => {
+  const res = await fetch(BASE_URL, {
+    headers: { "X-Forwarded-For": "127.0.0.1, 8.8.8.8, 66.102.8.200" },
+  });
   assert.equal(res.status, 403);
 });
 
-test("allows the whitelisted IP when it's the real last entry (as GFE appends it, no external LB)", async () => {
-  const res = await fetch(BASE_URL, { headers: { "X-Forwarded-For": "203.0.113.5, 127.0.0.1" } });
+test("allows the whitelisted IP when it's the real second-to-last entry", async () => {
+  const res = await fetch(BASE_URL, { headers: { "X-Forwarded-For": "203.0.113.5, 127.0.0.1, 66.102.8.200" } });
   assert.equal(res.status, 200);
 });
 
-test("allows a direct request from the whitelisted IP", async () => {
+test("fails closed when fewer than 2 hops are present (defensive, shouldn't happen via Hosting)", async () => {
   const res = await fetch(BASE_URL, { headers: { "X-Forwarded-For": "127.0.0.1" } });
-  assert.equal(res.status, 200);
+  assert.equal(res.status, 403);
 });

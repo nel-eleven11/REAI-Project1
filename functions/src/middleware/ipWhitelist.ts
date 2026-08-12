@@ -11,11 +11,11 @@ function parseWhitelist(raw: string | undefined): Set<string> {
   );
 }
 
-export function ipWhitelist(allowedIpsEnv: string | undefined) {
+export function ipWhitelist(allowedIpsEnv: string | undefined, trustedHops: 1 | 2 = 1) {
   const allowedIps = parseWhitelist(allowedIpsEnv);
 
   return function (req: Request, res: Response, next: NextFunction): void {
-    const clientIp = extractClientIp(req);
+    const clientIp = extractClientIp(req, trustedHops);
     const route = req.originalUrl;
 
     // 'finish' records the real status the handler sends, not just this 403.
