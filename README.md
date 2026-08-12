@@ -1,6 +1,6 @@
 # REAI-Project1
 
-Directorio de Médicos Especialistas — Ciudad de Guatemala. Ver [plan.md](plan.md) para el detalle completo del proyecto.
+Directorio de Médicos Especialistas — Ciudad de Guatemala.
 
 ## Entregables
 

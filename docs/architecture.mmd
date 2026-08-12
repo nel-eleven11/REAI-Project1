@@ -1,0 +1,26 @@
+flowchart LR
+    UI["<b>UI</b><br/>Firebase Hosting"]
+
+    subgraph api ["Cloud Functions v2 · TypeScript"]
+        direction TB
+        MW["Middleware<br/>ipWhitelist → appCheck<br/><i>no autorizada → 403</i>"]
+        LEC["<b>getDirectory</b> /directorio<br/><b>getCoverage</b> /coverage"]
+        COR["<b>submitCorrection</b><br/>/correcciones<br/><i>rate limit por IP</i>"]
+        COL["<b>collectDoctors</b><br/>/recolectarMedicos · /runCollectionBatch<br/><i>mantenimiento: /backfillZones<br/>/computeCoverageStats · /dataCardStats<br/>/resetCollectionProgress</i>"]
+    end
+
+    subgraph sched ["Scheduler · diario"]
+        direction TB
+        PUR["purgeExpiredRecords<br/><i>ToS 30 días</i>"]
+        CST["computeCoverageStats<br/><i>auditoría de sesgo</i>"]
+    end
+
+    GP{{"Google Places API<br/>Text Search + Details"}}
+    FS[("<b>Firestore</b><br/>medicos · collection_runs<br/>coverage_stats · correcciones<br/>access_log · rate_limits")]
+
+    UI --> MW --> LEC --> FS
+    UI --> COR --> FS
+    COL --> GP
+    COL --> FS
+    sched --> FS
+    PUR --> GP
