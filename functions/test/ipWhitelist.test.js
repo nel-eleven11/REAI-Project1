@@ -8,13 +8,17 @@ test("blocks a client IP that isn't on the whitelist", async () => {
   assert.equal(res.status, 403);
 });
 
-test("blocks a spoofed first entry when the trusted (last) IP isn't whitelisted", async () => {
-  const res = await fetch(BASE_URL, { headers: { "X-Forwarded-For": "127.0.0.1, 8.8.8.8" } });
+test("blocks a spoofed prefix when the load balancer's client IP isn't whitelisted", async () => {
+  const res = await fetch(BASE_URL, {
+    headers: { "X-Forwarded-For": "127.0.0.1, 8.8.8.8, 192.178.11.69" },
+  });
   assert.equal(res.status, 403);
 });
 
-test("allows the whitelisted IP even if it appears earlier in the header", async () => {
-  const res = await fetch(BASE_URL, { headers: { "X-Forwarded-For": "203.0.113.5, 127.0.0.1" } });
+test("allows the verified client IP immediately before the load balancer IP", async () => {
+  const res = await fetch(BASE_URL, {
+    headers: { "X-Forwarded-For": "203.0.113.5, 127.0.0.1, 192.178.11.69" },
+  });
   assert.equal(res.status, 200);
 });
 
