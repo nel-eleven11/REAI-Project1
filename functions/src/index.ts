@@ -10,6 +10,7 @@ import { getCoverageHandler } from "./getCoverage";
 import { submitCorrectionHandler } from "./submitCorrection";
 import { backfillZonesHandler } from "./backfillZones";
 import { computeCoverageStatsHandler } from "./computeCoverageStats";
+import { dataCardStatsHandler } from "./dataCardStats";
 
 admin.initializeApp();
 
@@ -54,6 +55,7 @@ collectApp.get("/runCollectionBatch", runCollectionBatchHandler);
 collectApp.get("/backfillZones", backfillZonesHandler);
 collectApp.get("/computeCoverageStats", computeCoverageStatsHandler);
 collectApp.get("/resetCollectionProgress", resetCollectionProgressHandler);
+collectApp.get("/dataCardStats", dataCardStatsHandler);
 
 export const collectDoctors = onRequest(collectApp);
 
