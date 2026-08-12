@@ -76,16 +76,17 @@
       <p class="hint">
         Mide qué tan bien representa Google Places cada combinación de zona y especialidad —
         no cuántos médicos existen realmente. Celdas vacías o pálidas sugieren baja
-        digitalización, no ausencia de médicos. Ver
+        digitalización, no ausencia de médicos.
+        <strong>"Resultados encontrados"</strong> mide cobertura real (cuántos devolvió la
+        búsqueda); <strong>"% con teléfono"</strong> mide completitud del dato entre los ya
+        encontrados — no son lo mismo: una celda puede tener pocos resultados pero 100% con
+        teléfono, o viceversa.
       </p>
-      <div id="heatmap-legend" class="heatmap-legend">
-        <span>% con teléfono:</span>
-        <span class="legend-swatch legend-0"></span> 0%
-        <span class="legend-swatch legend-25"></span> 25%
-        <span class="legend-swatch legend-50"></span> 50%
-        <span class="legend-swatch legend-75"></span> 75%
-        <span class="legend-swatch legend-100"></span> 100%
+      <div class="heatmap-toggle" role="group" aria-label="Métrica del heatmap">
+        <button type="button" id="metric-results" class="heatmap-toggle-btn active">Resultados encontrados</button>
+        <button type="button" id="metric-phone" class="heatmap-toggle-btn">% con teléfono</button>
       </div>
+      <div id="heatmap-legend" class="heatmap-legend"></div>
       <div id="heatmap-container" class="heatmap-container">
         <p class="status-line">Cargando datos de cobertura...</p>
       </div>

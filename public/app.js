@@ -202,12 +202,22 @@ function prefillCorrectionForm(placeId) {
   document.getElementById("corrections-panel").scrollIntoView({ behavior: "smooth" });
 }
 
-function pctToColor(pct) {
-  if (pct >= 87.5) return "#14468f";
-  if (pct >= 62.5) return "#2f7fd6";
-  if (pct >= 37.5) return "#7fbcf5";
-  if (pct > 0) return "#cfe8ff";
-  return "#f4f6f8";
+// "unique_results" measures the bias thesis (plan.md section 7): whether the
+// source returned anything at all. "pct_con_telefono" measures something
+// different — data completeness among what WAS found — and a cell with 0
+// results looks visually identical to a cell with results but no phone
+// listed if you only show the percentage. Both are real signals; the toggle
+// keeps them from being conflated into one number.
+let lastCoverageStats = [];
+let heatmapMetric = "unique_results";
+
+function valueToColor(value, max) {
+  if (max <= 0 || value <= 0) return "#f4f6f8";
+  const ratio = value / max;
+  if (ratio >= 0.875) return "#14468f";
+  if (ratio >= 0.625) return "#2f7fd6";
+  if (ratio >= 0.375) return "#7fbcf5";
+  return "#cfe8ff";
 }
 
 async function loadCoverage() {
@@ -216,22 +226,43 @@ async function loadCoverage() {
     const res = await apiFetch("/coverage");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const body = await res.json();
-    renderHeatmap(body.results || []);
+    lastCoverageStats = body.results || [];
+    renderHeatmap();
   } catch (error) {
     container.innerHTML = `<p class="status-line error">No se pudo cargar la cobertura: ${error.message}</p>`;
   }
 }
 
-function renderHeatmap(stats) {
+function renderLegend(max) {
+  const legend = document.getElementById("heatmap-legend");
+  if (heatmapMetric === "pct_con_telefono") {
+    legend.innerHTML =
+      `<span>% con teléfono:</span>` +
+      `<span class="legend-swatch legend-0"></span> 0%` +
+      `<span class="legend-swatch legend-25"></span> 25%` +
+      `<span class="legend-swatch legend-50"></span> 50%` +
+      `<span class="legend-swatch legend-75"></span> 75%` +
+      `<span class="legend-swatch legend-100"></span> 100%`;
+    return;
+  }
+  const steps = [0, Math.round(max * 0.375), Math.round(max * 0.625), Math.round(max * 0.875), max];
+  legend.innerHTML =
+    `<span>Resultados encontrados:</span>` +
+    steps.map((s, i) => `<span class="legend-swatch legend-${i * 25}"></span> ${s}`).join("");
+}
+
+function renderHeatmap() {
   const container = document.getElementById("heatmap-container");
   container.innerHTML = "";
 
-  if (stats.length === 0) {
+  if (lastCoverageStats.length === 0) {
     container.innerHTML = `<p class="status-line">Sin datos de cobertura todavía — corre computeCoverageStats.</p>`;
     return;
   }
 
-  const byKey = new Map(stats.map((s) => [`${s.zona}__${s.especialidad}`, s]));
+  const byKey = new Map(lastCoverageStats.map((s) => [`${s.zona}__${s.especialidad}`, s]));
+  const maxResults = Math.max(...lastCoverageStats.map((s) => s.unique_results), 1);
+  renderLegend(maxResults);
 
   const table = document.createElement("table");
   table.className = "heatmap-table";
@@ -256,12 +287,17 @@ function renderHeatmap(stats) {
       if (!stat) {
         cell.className = "heatmap-empty";
         cell.textContent = "—";
-        cell.style.background = pctToColor(0);
+        cell.style.background = "#f4f6f8";
       } else {
         cell.className = "heatmap-cell";
-        cell.textContent = `${stat.pct_con_telefono}%`;
-        cell.title = `${stat.unique_results} registro(s) únicos, ${stat.searches_run} búsqueda(s)`;
-        cell.style.background = pctToColor(stat.pct_con_telefono);
+        cell.title = `${stat.unique_results} registro(s) únicos, ${stat.searches_run} búsqueda(s), ${stat.pct_con_telefono}% con teléfono`;
+        if (heatmapMetric === "pct_con_telefono") {
+          cell.textContent = `${stat.pct_con_telefono}%`;
+          cell.style.background = valueToColor(stat.pct_con_telefono, 100);
+        } else {
+          cell.textContent = String(stat.unique_results);
+          cell.style.background = valueToColor(stat.unique_results, maxResults);
+        }
       }
       row.appendChild(cell);
     }
@@ -269,6 +305,13 @@ function renderHeatmap(stats) {
   }
   table.appendChild(tbody);
   container.appendChild(table);
+}
+
+function setHeatmapMetric(metric) {
+  heatmapMetric = metric;
+  document.getElementById("metric-results").classList.toggle("active", metric === "unique_results");
+  document.getElementById("metric-phone").classList.toggle("active", metric === "pct_con_telefono");
+  renderHeatmap();
 }
 
 async function submitCorrection(event) {
@@ -328,6 +371,9 @@ function init() {
   });
 
   document.getElementById("correction-form").addEventListener("submit", submitCorrection);
+
+  document.getElementById("metric-results").addEventListener("click", () => setHeatmapMetric("unique_results"));
+  document.getElementById("metric-phone").addEventListener("click", () => setHeatmapMetric("pct_con_telefono"));
 
   initAppCheck().finally(() => {
     search(1);
