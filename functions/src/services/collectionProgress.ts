@@ -29,3 +29,9 @@ export async function claimNextBatch(batchSize: number, totalLength: number): Pr
     return { startIndex, endIndex };
   });
 }
+
+// Only meaningful right after buildKeywordMatrix()'s order changes — the old
+// cursor position refers to a different sequence of combinations.
+export async function resetProgress(): Promise<void> {
+  await progressDoc().set({ next_index: 0, updated_at: new Date().toISOString() });
+}

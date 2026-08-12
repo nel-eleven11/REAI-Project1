@@ -26,9 +26,11 @@ Ejemplos: `"clínica cardiología zona 10 Guatemala"`, `"doctor pediatría zona 
 
 El mismo número de combinaciones (especialidad × sufijo) se ejecuta en cada zona, sin importar cuántos resultados devuelva. Concentrar el esfuerzo solo donde "sí hay resultados" sesgaría la auditoría de cobertura de la sección 7 del plan — mediríamos nuestro propio criterio de búsqueda, no la realidad de la fuente.
 
-## Volumen total
+## Volumen total y orden de recolección
 
-8 especialidades × 4 sufijos × 18 zonas = **576 combinaciones**. A 20 resultados/invocación y cuota de 50 invocaciones/día, la recolección completa toma varios días — se prioriza por especialidad antes que agotar zona por zona, para tener cobertura parcial de todas las especialidades desde el día 1.
+8 especialidades × 4 sufijos × 18 zonas = **576 combinaciones**. A la cuota diaria de la API, cubrir todo toma varios días — el **orden** de la matriz importa para que la cobertura parcial sea representativa.
+
+`buildKeywordMatrix()` recorre **sufijo → zona → especialidad**, no zona → especialidad → sufijo. Los primeros 144 combos (las 8 especialidades × 18 zonas con el sufijo `médico`) ya tocan **cada celda** de la grilla zona × especialidad al menos una vez, antes de repetir ninguna celda con un segundo sufijo. Con el orden anterior (zona por zona, agotando cada una antes de pasar a la siguiente), la cobertura parcial dejaba la mayoría del heatmap mostrando "nunca buscado" durante mucho tiempo, aunque sí se hubiera buscado — solo que concentrado en las primeras zonas. Este orden hace que el progreso parcial sea representativo de toda la grilla, no solo de las primeras filas.
 
 ## Trazabilidad
 

@@ -121,6 +121,8 @@ async function purgeDocContent(
       lat: admin.firestore.FieldValue.delete(),
       lng: admin.firestore.FieldValue.delete(),
       zona: admin.firestore.FieldValue.delete(),
+      zona_raw: admin.firestore.FieldValue.delete(),
+      zona_normalizada: admin.firestore.FieldValue.delete(),
       keyword_usado: admin.firestore.FieldValue.delete(),
       missing_fields: admin.firestore.FieldValue.delete(),
       run_id: admin.firestore.FieldValue.delete(),

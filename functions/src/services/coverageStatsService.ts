@@ -69,9 +69,12 @@ async function bucketResultsByKey(db: FirebaseFirestore.Firestore): Promise<Map<
 
   for (const doc of snapshot.docs) {
     const doctor = doc.data() as Doctor;
-    if (!doctor.zona || !doctor.especialidad_raw || doctor.suppressed) continue;
+    if (!doctor.zona_raw || !doctor.especialidad_raw || doctor.suppressed) continue;
 
-    const key = `${doctor.zona}_${doctor.especialidad_raw}`;
+    // Bucketed by the SEARCHED zona/especialidad, not the effective ones —
+    // must match collection_runs' key space or searches_run and
+    // unique_results silently stop lining up (plan.md section 7 audit).
+    const key = `${doctor.zona_raw}_${doctor.especialidad_raw}`;
     if (!buckets.has(key)) {
       buckets.set(key, { uniqueResults: 0, withPhone: 0, withWebsite: 0 });
     }

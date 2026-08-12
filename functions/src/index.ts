@@ -4,10 +4,12 @@ import express from "express";
 import { ipWhitelist } from "./middleware/ipWhitelist";
 import { appCheckGuard } from "./middleware/appCheck";
 import { collectDoctorsHandler } from "./collectDoctors";
-import { runCollectionBatchHandler } from "./runCollectionBatch";
+import { runCollectionBatchHandler, resetCollectionProgressHandler } from "./runCollectionBatch";
 import { getDirectoryHandler } from "./getDirectory";
 import { getCoverageHandler } from "./getCoverage";
 import { submitCorrectionHandler } from "./submitCorrection";
+import { backfillZonesHandler } from "./backfillZones";
+import { computeCoverageStatsHandler } from "./computeCoverageStats";
 
 admin.initializeApp();
 
@@ -49,6 +51,9 @@ const collectApp = express();
 collectApp.use(ipWhitelist(process.env.IP_WHITELIST));
 collectApp.get("/recolectarMedicos", collectDoctorsHandler);
 collectApp.get("/runCollectionBatch", runCollectionBatchHandler);
+collectApp.get("/backfillZones", backfillZonesHandler);
+collectApp.get("/computeCoverageStats", computeCoverageStatsHandler);
+collectApp.get("/resetCollectionProgress", resetCollectionProgressHandler);
 
 export const collectDoctors = onRequest(collectApp);
 

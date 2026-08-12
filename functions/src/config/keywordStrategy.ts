@@ -27,12 +27,19 @@ export function buildKeyword(specialty: Specialty, prefix: SearchPrefix, zone: s
   return `${prefix} ${specialty} ${zone} Guatemala`;
 }
 
-// Same number of combinations per zone (plan.md sections 7-8).
+// Ordered prefix-major (not zone-major): the first 144 combos (SPECIALTIES x
+// ZONES for the médico prefix) already cover every cell of the zona x
+// especialidad grid once, before repeating any cell with a second search
+// variant. Exhausting one zone or specialty completely before touching the
+// rest — the previous order — leaves most of the heatmap showing "never
+// searched" for a long time even though searches did happen, just
+// concentrated. This way partial progress is representative of the whole
+// grid, not just the first few rows (plan.md sections 7-8).
 export function buildKeywordMatrix(): KeywordCombo[] {
   const combos: KeywordCombo[] = [];
-  for (const zone of ZONES) {
-    for (const specialty of SPECIALTIES) {
-      for (const prefix of SEARCH_PREFIXES) {
+  for (const prefix of SEARCH_PREFIXES) {
+    for (const zone of ZONES) {
+      for (const specialty of SPECIALTIES) {
         combos.push({ keyword: buildKeyword(specialty, prefix, zone), specialty, zone });
       }
     }

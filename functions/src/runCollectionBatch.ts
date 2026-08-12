@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { buildKeywordMatrix } from "./config/keywordStrategy";
 import { collectAndSave } from "./services/collectionService";
-import { claimNextBatch } from "./services/collectionProgress";
+import { claimNextBatch, resetProgress } from "./services/collectionProgress";
 
 const DEFAULT_BATCH_SIZE = 2;
 const MAX_BATCH_SIZE = 10;
@@ -52,4 +52,10 @@ export async function runCollectionBatchHandler(req: Request, res: Response): Pr
     results: succeeded,
     errors: failed,
   });
+}
+
+// Only needed once, right after buildKeywordMatrix()'s order changes.
+export async function resetCollectionProgressHandler(_req: Request, res: Response): Promise<void> {
+  await resetProgress();
+  res.status(200).json({ next_index: 0 });
 }

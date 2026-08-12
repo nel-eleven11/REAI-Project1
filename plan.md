@@ -45,6 +45,7 @@ Tres afirmaciones que sostenemos con código y números, no con párrafos:
 ```
 medicos/{place_id}
   nombre
+  especialidad                # efectiva: especialidad_normalizada si hay match, si no especialidad_raw — filtro de /directorio
   especialidad_raw            # especialidad usada para la búsqueda, nunca se sobrescribe
   especialidad_normalizada    # derivada de `nombre` por reglas determinísticas | null, ver sección 9
   confidence                  # 0.9 si hubo match, 0 si no | null
@@ -52,7 +53,10 @@ medicos/{place_id}
   telefono        | null
   sitio_web       | null
   missing_fields: string[]    # campos ausentes explícitos, nunca cadenas vacías
-  zona, lat, lng
+  zona                        # efectiva: zona_normalizada si "zona N" aparece en direccion, si no zona_raw — filtro de /directorio
+  zona_raw                    # zona usada para la búsqueda
+  zona_normalizada            # extraída de `direccion` con regex | null si la dirección no menciona "zona N"
+  lat, lng
   fecha_recoleccion
   expires_at                  # fecha_recoleccion + 30 días (ToS Google)
   run_id                      # trazabilidad a la corrida que lo creó
@@ -167,6 +171,7 @@ Esto convierte el proyecto de "recolectamos un directorio" a "auditamos una fuen
 - Probar variantes por inconsistencia de nomenclatura en Google Maps: `"médico"`, `"doctor"`, `"clínica"`, `"consultorio"` + especialidad.
 - Mantener tabla de especialidades objetivo (cardiología, pediatría, dermatología, ginecología, ortopedia, oftalmología, traumatología, psiquiatría) × zonas relevantes (1–18).
 - **Cobertura balanceada obligatoria:** el mismo número de búsquedas por zona, independientemente del rendimiento. Concentrar esfuerzo donde "sí hay resultados" contaminaría la auditoría de la sección 7.
+- **Orden de recolección ancho-primero:** la matriz se recorre sufijo → zona → especialidad, no zona → especialidad → sufijo. Con cuota diaria limitada, la recolección completa toma varios días — si se agota una zona antes de tocar las demás, el heatmap parcial muestra la mayoría de las celdas como "nunca buscadas" durante mucho tiempo, aunque sí se haya buscado (solo que concentrado). El orden ancho-primero hace que los primeros ~144 combos (1 de 4 sufijos × todas las zonas × todas las especialidades) ya cubran toda la grilla al menos una vez, así el progreso parcial es representativo del mapa completo, no solo de las primeras zonas.
 - Registrar cada `keyword_usado` y `run_id` junto al resultado para trazabilidad.
 - Deduplicar por `place_id` (idempotente al reinsertar).
 - Documentar honestamente campos vacíos — no inventar ni inferir datos.

@@ -2,6 +2,7 @@ import * as admin from "firebase-admin";
 import type { Doctor, CollectionRun } from "../types/doctor";
 import type { PlaceWithDetails } from "./placesClient";
 import { normalizeSpecialty } from "./specialtyNormalizer";
+import { extractZone } from "./zoneExtractor";
 
 const RETENTION_DAYS = 30;
 const TEXT_SEARCH_COST_USD = 0.032;
@@ -33,6 +34,7 @@ export async function saveDoctors(
     if (!place.sitio_web) missingFields.push("sitio_web");
 
     const normalization = normalizeSpecialty(place.nombre);
+    const extractedZone = extractZone(place.direccion);
 
     const isNew = await db.runTransaction(async (tx) => {
       const existing = await tx.get(docRef);
@@ -48,7 +50,9 @@ export async function saveDoctors(
         telefono: place.telefono,
         sitio_web: place.sitio_web,
         missing_fields: missingFields,
-        zona: zone,
+        zona: extractedZone ?? zone,
+        zona_raw: zone,
+        zona_normalizada: extractedZone,
         lat: place.lat,
         lng: place.lng,
         fecha_recoleccion: now.toISOString(),

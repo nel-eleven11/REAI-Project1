@@ -12,7 +12,12 @@ export interface Doctor {
   telefono: string | null;
   sitio_web: string | null;
   missing_fields: string[];
+  // Zone extracted from direccion when found, otherwise the searched zone —
+  // /directorio filters on this. zona_raw is the searched zone, kept for
+  // traceability.
   zona: string;
+  zona_raw: string;
+  zona_normalizada: string | null;
   lat: number | null;
   lng: number | null;
   fecha_recoleccion: string;

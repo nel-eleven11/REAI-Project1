@@ -29,6 +29,8 @@ test("GET /coverage returns the precomputed zona x especialidad matrix", async (
       sitio_web: "https://example.com",
       missing_fields: [],
       zona: "zona 16",
+      zona_raw: "zona 16",
+      zona_normalizada: "zona 16",
       lat: 14.6,
       lng: -90.5,
       fecha_recoleccion: new Date().toISOString(),
