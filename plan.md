@@ -237,7 +237,7 @@ Implementamos la IP whitelist como se solicita, y documentamos por qué no basta
 
 **Implementación:**
 - Middleware como primer paso de la request; si falla, retorna 403 sin ejecutar lógica adicional.
-- `req.ip` derivado solo del proxy de confianza de Cloud Functions. **No** confiar en `X-Forwarded-For` crudo — es falsificable por el cliente.
+- IP real tomada del **último** valor de `X-Forwarded-For` (el que agrega Cloud Functions/GFE al invocar directo, sin External HTTPS Load Balancer). Todo lo anterior a esa posición es controlado por el cliente y falsificable. Un merge de un compañero cambió esto a la penúltima posición asumiendo un Load Balancer externo que este proyecto no tiene configurado — eso reabría el bypass (probado con curl contra el emulador) y de paso bloqueaba tráfico legítimo. Revertido; documentado aquí para que no se repita sin antes confirmar la topología real de deploy.
 - Toda decisión (200/403/429) se registra en `access_log`.
 
 **Limitaciones documentadas:**
