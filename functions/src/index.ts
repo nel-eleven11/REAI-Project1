@@ -69,4 +69,5 @@ export const submitCorrection = onRequest(correctionsApp);
 
 export { purgeExpiredRecordsScheduled } from "./purgeExpiredRecords";
 export { computeCoverageStatsScheduled } from "./computeCoverageStats";
+export { runCollectionBatchScheduled } from "./runCollectionBatch";
 
